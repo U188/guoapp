@@ -72,6 +72,8 @@ jobs:
           yes | "$SM" --licenses > /dev/null 2>&1 || true
           "$SM" 'ndk;28.2.13676358'
           ls -d "$SDK"/ndk/*
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$SDK/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Configure Android signing
         run: python scripts/configure_signing.py
         env:
