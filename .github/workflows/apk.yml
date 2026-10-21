@@ -2,6 +2,16 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      abi:
+        description: '目标 ABI'
+        type: choice
+        options:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86_64
+          - all
+        default: arm64-v8a
 
 permissions:
   contents: write
@@ -28,6 +38,13 @@ jobs:
             arguments: '--all-sources'
     steps:
       - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/2* 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android/sdk/system-images 2>/dev/null || true
+          df -h /
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -62,7 +79,15 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      - run: python scripts/build_android.py ${{ matrix.arguments }}
+      - name: Build APK
+        run: |
+          ABI="${{ inputs.abi }}"
+          echo "target abi: $ABI"
+          if [ "$ABI" = "all" ]; then
+            python scripts/build_android.py ${{ matrix.arguments }}
+          else
+            python scripts/build_android.py ${{ matrix.arguments }} --abi "$ABI"
+          fi
       - name: Remove signing files
         if: always()
         run: python scripts/configure_signing.py --clean
