@@ -213,25 +213,48 @@ func (downloader *Downloader) hongguoAppRequest(ctx context.Context, method, pat
 		}
 		if response.StatusCode != http.StatusOK {
 			lastErr = fmt.Errorf("红果 App 接口 HTTP %d", response.StatusCode)
+			downloader.recordHongguoAppResponse("error", "hongguo_app_http", request, response, content, "HTTP 状态异常")
 			if response.StatusCode >= 400 && response.StatusCode < 500 {
 				return nil, lastErr
 			}
 			continue
 		}
 		if len(content) == 0 || len(content) > providerMaxBodyBytes {
+			downloader.recordHongguoAppResponse("error", "hongguo_app_body", request, response, content, "响应不可用："+diagnosticBodyPreview(content))
 			return nil, errors.New("红果 App 接口未返回有效数据")
 		}
 		var result map[string]any
 		decoder := json.NewDecoder(bytes.NewReader(content))
 		decoder.UseNumber()
 		if err := decoder.Decode(&result); err != nil || result == nil {
+			downloader.recordHongguoAppResponse("error", "hongguo_app_json", request, response, content, "JSON 解析失败："+diagnosticBodyPreview(content))
 			return nil, errors.New("红果 App 接口返回格式异常")
 		}
 		code := firstNonEmpty(mapString(result, "code", "Code", "status_code"), mapString(nestedMap(result, "BaseResp"), "StatusCode"))
 		if code != "" && code != "0" {
+			downloader.recordHongguoAppResponse("error", "hongguo_app_code", request, response, content, "code="+truncate(code, 20)+" keys="+diagnosticKeys(result, 12)+" "+truncate(firstNonEmpty(mapString(result, "message", "msg", "status_msg")), 120))
 			return nil, fmt.Errorf("红果 App 接口暂不可用（%s）", truncate(code, 20))
 		}
+		downloader.recordHongguoAppResponse("info", "hongguo_app_ok", request, response, content, "keys="+diagnosticKeys(result, 12))
 		return result, nil
 	}
 	return nil, lastErr
+}
+
+func (downloader *Downloader) recordHongguoAppResponse(level, event string, request *http.Request, response *http.Response, content []byte, message string) {
+	host := ""
+	if request != nil && request.URL != nil {
+		host = request.URL.Hostname()
+	}
+	status := 0
+	responseType := ""
+	if response != nil {
+		status = response.StatusCode
+		responseType = truncate(response.Header.Get("Content-Type"), 80)
+	}
+	downloader.recordDiagnostic(diagnosticEvent{
+		Level: level, Event: event, Source: sourceHongguo, Host: host,
+		HTTPStatus: status, ResponseType: responseType, TotalBytes: int64(len(content)),
+		Message: message,
+	})
 }

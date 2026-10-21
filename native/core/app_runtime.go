@@ -104,6 +104,7 @@ type nativeInput struct {
 	Directory        string                  `json:"directory"`
 	Source           string                  `json:"source"`
 	Page             int                     `json:"page"`
+	Limit            int                     `json:"limit"`
 	Query            string                  `json:"query"`
 	Category         string                  `json:"category"`
 	Drama            nativeDrama             `json:"drama"`
@@ -472,6 +473,12 @@ func nativeDispatch(input nativeInput) (any, error) {
 	case "release":
 		engine.nativeReleasePlayback(input.Session)
 		return true, nil
+	case "logs":
+		lines := []string{}
+		if engine.downloader != nil {
+			lines = engine.downloader.diagnosticLogTail(max(1, min(input.Limit, 500)))
+		}
+		return map[string]any{"lines": lines}, nil
 	default:
 		return nil, errors.New("不支持的应用操作")
 	}

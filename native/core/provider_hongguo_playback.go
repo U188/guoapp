@@ -52,14 +52,20 @@ func (d *Downloader) resolveHongguoPlaybackAPI(ctx context.Context, seriesID, vi
 	query := url.Values{"id": {base64.StdEncoding.EncodeToString(reference)}}
 	body, err := d.fetchProviderText(ctx, hongguoPlaybackAPI+"?"+query.Encode(), hongguoBaseURL+"/")
 	if err != nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID,
+			Message: "备用接口请求失败：" + publicError(err).Error()})
 		return providerMedia{}, err
 	}
 	decoded, err := decodeHongguoPlaybackResponse(body)
 	if err != nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID, TotalBytes: int64(len(body)),
+			Message: "备用接口响应解码失败：" + publicError(err).Error() + "；" + diagnosticBodyPreview([]byte(body))})
 		return providerMedia{}, err
 	}
 	var response hongguoPlaybackResponse
 	if err := json.Unmarshal(decoded, &response); err != nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID, TotalBytes: int64(len(body)),
+			Message: "备用接口返回格式异常：" + diagnosticBodyPreview(decoded)})
 		return providerMedia{}, errors.New("红果备用播放接口返回了无效数据")
 	}
 	for _, flag := range []json.RawMessage{response.Parse, response.JX} {
@@ -98,11 +104,17 @@ func (d *Downloader) resolveHongguoPlaybackAPI(ctx context.Context, seriesID, vi
 	}
 	if selected.URL != "" {
 		selected.Variants = variants
+		d.recordDiagnostic(diagnosticEvent{Level: "info", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID, Quality: selected.Quality,
+			Message: fmt.Sprintf("备用接口候选=%d", len(variants))})
 		return selected, nil
 	}
 	if keyErr != nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID,
+			Message: "备用接口密钥不可用：" + publicError(keyErr).Error() + "；key_urls=" + strconv.Itoa(len(response.KeyURLs))})
 		return providerMedia{}, keyErr
 	}
+	d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_fallback", Source: sourceHongguo, DramaID: seriesID, TotalBytes: int64(len(body)),
+		Message: fmt.Sprintf("备用接口无可用媒体：key_urls=%d 已通过=%d parse=%s jx=%s", len(response.KeyURLs), len(variants), truncate(string(response.Parse), 20), truncate(string(response.JX), 20))})
 	return providerMedia{}, errors.New("红果备用播放接口未返回该集可用的媒体和密钥，请稍后重试或确认该集是否仍可访问")
 }
 

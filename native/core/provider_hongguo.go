@@ -200,13 +200,16 @@ func (d *Downloader) resolveHongguoMedia(ctx context.Context, task Task) (provid
 	}
 	media, nativeErr := d.resolveHongguoAppMedia(ctx, videoID)
 	if nativeErr == nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "info", Event: "hongguo_media", Source: sourceHongguo, DramaID: task.DramaID, Episode: task.Index + 1, Quality: media.Quality, Message: "App 取流成功"})
 		return media, nil
 	}
+	d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_app_media", Source: sourceHongguo, DramaID: task.DramaID, Episode: task.Index + 1, Message: "App 取流失败，转网页：" + publicError(nativeErr).Error()})
 	if err := ctx.Err(); err != nil {
 		return providerMedia{}, err
 	}
 	media, pageErr := d.resolveHongguoWebMedia(ctx, seriesID, videoID)
 	if pageErr == nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "info", Event: "hongguo_media", Source: sourceHongguo, DramaID: task.DramaID, Episode: task.Index + 1, Quality: media.Quality, Message: "网页取流成功"})
 		return media, nil
 	}
 	if err := ctx.Err(); err != nil {
@@ -214,8 +217,13 @@ func (d *Downloader) resolveHongguoMedia(ctx context.Context, task Task) (provid
 	}
 	media, apiErr := d.resolveHongguoPlaybackAPI(ctx, seriesID, videoID)
 	if apiErr == nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "info", Event: "hongguo_media", Source: sourceHongguo, DramaID: task.DramaID, Episode: task.Index + 1, Quality: media.Quality, Message: "备用接口取流成功"})
 		return media, nil
 	}
+	d.recordDiagnostic(diagnosticEvent{
+		Level: "error", Event: "hongguo_media", Source: sourceHongguo, DramaID: task.DramaID, Episode: task.Index + 1,
+		Message: fmt.Sprintf("三级取流均失败：App=%v；网页=%v；备用=%v", publicError(nativeErr), publicError(pageErr), publicError(apiErr)),
+	})
 	return providerMedia{}, fmt.Errorf("红果 App 取流失败：%v；网页取流失败：%v；备用取流失败：%w", publicError(nativeErr), publicError(pageErr), apiErr)
 }
 
@@ -223,15 +231,28 @@ func (d *Downloader) resolveHongguoWebMedia(ctx context.Context, seriesID, video
 	pageURL := hongguoBaseURL + "/player/" + url.PathEscape(seriesID) + "/" + url.PathEscape(videoID)
 	body, err := d.fetchProviderText(ctx, pageURL, hongguoBaseURL+"/")
 	if err != nil {
+		d.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_web", Source: sourceHongguo, DramaID: seriesID, Message: "网页取流请求失败：" + publicError(err).Error()})
 		return providerMedia{}, err
 	}
 	page := routerLoaderMap(parseRouterData(body), "player_", "player_page")
 	if mapString(page, "vid") != videoID || mapString(page, "series_id") != seriesID {
+		d.recordDiagnostic(diagnosticEvent{
+			Level: "error", Event: "hongguo_web", Source: sourceHongguo, DramaID: seriesID,
+			TotalBytes: int64(len(body)),
+			Message: fmt.Sprintf("页面剧集不匹配 vid=%s 页面=%s series=%s keys=%s",
+				videoID, mapString(page, "vid"), mapString(page, "series_id"), truncate(diagnosticKeys(page, 10), 200)),
+		})
 		return providerMedia{}, fmt.Errorf("红果未返回所请求的剧集，可能仅允许网页试看；请在站点确认该集的访问权限")
 	}
 	info, _ := page["video_player_info"].(map[string]any)
 	addresses := hongguoMediaAddresses(info)
 	if len(addresses) == 0 {
+		d.recordDiagnostic(diagnosticEvent{
+			Level: "error", Event: "hongguo_web", Source: sourceHongguo, DramaID: seriesID,
+			TotalBytes: int64(len(body)),
+			Message: fmt.Sprintf("页面无公开播放地址 vid=%s page_keys=%s info_keys=%s 播放地址=%d",
+				videoID, truncate(diagnosticKeys(page, 10), 200), truncate(diagnosticKeys(info, 10), 200), len(addresses)),
+		})
 		return providerMedia{}, fmt.Errorf("红果该集未提供公开播放地址，可能需要登录或 App 授权；不会将试看集冒充该集下载")
 	}
 	duration, _ := strconv.ParseFloat(mapString(info, "duration"), 64)

@@ -158,6 +158,49 @@ class _SourcesScreenState extends State<SourcesScreen> {
     }
   }
 
+  Future<void> _showLogs() async {
+    List<String> lines;
+    try {
+      lines = await widget.repository.logs(limit: 300);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('读取运行日志失败：$error')));
+      return;
+    }
+    if (!mounted) return;
+    final text = lines.isEmpty
+        ? '暂无运行日志'
+        : lines.reversed.join('\n');
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('运行日志'),
+        content: SizedBox(
+          width: 680,
+          height: 440,
+          child: SingleChildScrollView(
+            child: SelectableText(text, style: const TextStyle(fontSize: 12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('复制并关闭'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: widget.store,
@@ -174,7 +217,16 @@ class _SourcesScreenState extends State<SourcesScreen> {
           ? viewPaddingBottom
           : paddingBottom;
       return Scaffold(
-        appBar: AppBar(title: const Text('站源管理')),
+        appBar: AppBar(
+          title: const Text('站源管理'),
+          actions: [
+            IconButton(
+              tooltip: '运行日志',
+              onPressed: _showLogs,
+              icon: const Icon(Icons.receipt_long_outlined),
+            ),
+          ],
+        ),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 960),

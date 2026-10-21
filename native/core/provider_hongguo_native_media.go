@@ -33,7 +33,19 @@ func (downloader *Downloader) resolveHongguoAppMedia(ctx context.Context, videoI
 			return providerMedia{}, errors.New("红果 App 播放信息格式异常")
 		}
 	}
-	return selectHongguoAppMedia(model)
+	media, err := selectHongguoAppMedia(model)
+	if err != nil {
+		downloader.recordDiagnostic(diagnosticEvent{
+			Level: "error", Event: "hongguo_app_media", Source: sourceHongguo, DramaID: videoID,
+			Message: truncate(err.Error()+"；model_keys="+diagnosticKeys(model, 12)+"；候选="+strconv.Itoa(len(hongguoVideoVariants(model))), 600),
+		})
+		return providerMedia{}, err
+	}
+	downloader.recordDiagnostic(diagnosticEvent{
+		Level: "info", Event: "hongguo_app_media", Source: sourceHongguo, DramaID: videoID, Quality: media.Quality,
+		Message: fmt.Sprintf("候选=%d 清晰度/编码已排序 CENC=%t 时长=%.0fs", len(media.Variants), len(media.CENCKey) > 0, media.Duration.Seconds()),
+	})
+	return media, nil
 }
 
 func selectHongguoAppMedia(model map[string]any) (providerMedia, error) {

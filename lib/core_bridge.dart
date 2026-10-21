@@ -131,6 +131,7 @@ abstract class AppRepository {
   Future<void> moveDownloads(String directory) async =>
       throw AppFailure('当前环境不支持迁移');
   Future<int> workLease(String id, String command) async => 0;
+  Future<List<String>> logs({int limit = 200}) async => const [];
   bool get supportsDownloads => false;
   Future<List<DownloadJob>> downloads() async => [];
   Future<int> enqueueDownloads(
@@ -246,6 +247,14 @@ class NativeRepository extends AppRepository {
         'settings': settings.toJson(),
       }),
     );
+  }
+
+  @override
+  Future<List<String>> logs({int limit = 200}) async {
+    final data = await _call({'action': 'logs', 'limit': limit});
+    final lines = data['lines'];
+    if (lines is! List) return const [];
+    return [for (final line in lines) '$line'];
   }
 
   Future<Map<String, dynamic>> _read(
