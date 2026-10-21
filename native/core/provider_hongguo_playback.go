@@ -162,11 +162,12 @@ func decodeHongguoPlaybackResponse(body string) ([]byte, error) {
 
 func decodeHongguoBase64(value string) ([]byte, error) {
 	value = strings.TrimSpace(value)
-	decoded, err := base64.StdEncoding.Strict().DecodeString(value)
-	if err == nil {
-		return decoded, nil
+	for _, encoding := range []*base64.Encoding{base64.StdEncoding.Strict(), base64.RawStdEncoding.Strict(), base64.URLEncoding.Strict(), base64.RawURLEncoding.Strict()} {
+		if decoded, err := encoding.DecodeString(value); err == nil {
+			return decoded, nil
+		}
 	}
-	return base64.RawStdEncoding.Strict().DecodeString(value)
+	return nil, errors.New("红果 Base64 数据无效")
 }
 
 func hongguoContentKey(value string) ([]byte, error) {

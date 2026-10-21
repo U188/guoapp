@@ -230,9 +230,9 @@ func diagnosticKeys(value map[string]any, limit int) string {
 }
 
 func diagnosticBodyPreview(content []byte) string {
-	text := strings.Join(strings.Fields(string(content)), " ")
-	if text == "" {
-		return "响应体为空"
+	var fields map[string]any
+	if json.Unmarshal(content, &fields) == nil && fields != nil {
+		return fmt.Sprintf("响应 bytes=%d keys=%s", len(content), diagnosticKeys(fields, 12))
 	}
-	return truncate(redactErrorString(text), 240)
+	return fmt.Sprintf("响应 bytes=%d kind=%s", len(content), hongguoResponseKind(content))
 }

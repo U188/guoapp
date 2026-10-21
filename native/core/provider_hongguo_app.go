@@ -232,7 +232,7 @@ func (downloader *Downloader) hongguoAppRequest(ctx context.Context, method, pat
 		}
 		code := firstNonEmpty(mapString(result, "code", "Code", "status_code"), mapString(nestedMap(result, "BaseResp"), "StatusCode"))
 		if code != "" && code != "0" {
-			downloader.recordHongguoAppResponse("error", "hongguo_app_code", request, response, content, "code="+truncate(code, 20)+" keys="+diagnosticKeys(result, 12)+" "+truncate(firstNonEmpty(mapString(result, "message", "msg", "status_msg")), 120))
+			downloader.recordHongguoAppResponse("error", "hongguo_app_code", request, response, content, "code="+truncate(code, 20)+" keys="+diagnosticKeys(result, 12))
 			return nil, fmt.Errorf("红果 App 接口暂不可用（%s）", truncate(code, 20))
 		}
 		downloader.recordHongguoAppResponse("info", "hongguo_app_ok", request, response, content, "keys="+diagnosticKeys(result, 12))

@@ -50,6 +50,11 @@ EXCLUDED_PATHS = {
 REQUIRED_FILES = {
     'AGENTS.md', 'README.md', 'pubspec.yaml', 'pubspec.lock', 'lib/main.dart',
     'native/go.mod', 'native/go.sum', 'native/bridge/main.go',
+    'native/core/hongguo_sign_tables.bin',
+    'native/core/provider_hongguo_video_sign.go',
+    'native/core/provider_hongguo_video_hash.go',
+    'native/core/provider_hongguo_video_medusa.go',
+    'native/core/provider_hongguo_video_request.go',
     'android/app/build.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties',
     'windows/CMakeLists.txt', 'windows/flutter/CMakeLists.txt',
     '.github/workflows/build.yml', 'scripts/build_native.py',

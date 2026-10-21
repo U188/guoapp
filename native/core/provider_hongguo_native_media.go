@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,22 +14,14 @@ func (downloader *Downloader) resolveHongguoAppMedia(ctx context.Context, videoI
 	if !hongguoNumericID.MatchString(videoID) {
 		return providerMedia{}, errors.New("红果视频 ID 无效")
 	}
-	payload := map[string]any{
-		"video_id": videoID, "content_type": 1,
-		"biz_param": map[string]any{"need_all_video_definition": true, "video_platform": 3},
-	}
-	result, err := downloader.hongguoAppRequest(ctx, http.MethodPost, "/novel/player/video_model/v1/", nil, payload)
+	result, err := downloader.hongguoVideoModelRequest(ctx, videoID)
 	if err != nil {
 		return providerMedia{}, err
 	}
-	data := nestedMap(result, "data")
-	model, _ := data["video_model"].(map[string]any)
-	if encoded, ok := data["video_model"].(string); ok {
-		decoder := json.NewDecoder(strings.NewReader(encoded))
-		decoder.UseNumber()
-		if err := decoder.Decode(&model); err != nil {
-			return providerMedia{}, errors.New("红果 App 播放信息格式异常")
-		}
+	model, err := hongguoVideoModel(result, videoID)
+	if err != nil {
+		downloader.recordDiagnostic(diagnosticEvent{Level: "error", Event: "hongguo_multi_model", Source: sourceHongguo, DramaID: videoID, Message: err.Error() + " data_keys=" + diagnosticKeys(nestedMap(result, "data"), 12)})
+		return providerMedia{}, err
 	}
 	media, err := selectHongguoAppMedia(model)
 	if err != nil {
@@ -64,24 +54,25 @@ func selectHongguoAppMedia(model map[string]any) (providerMedia, error) {
 		if codec == "bytevc2" || strings.Contains(strings.ToLower(mapString(variant, "gear_des_key")), "bytevc2") {
 			continue
 		}
-		addresses := hongguoMediaAddresses(variant)
+		addresses := hongguoModelAddresses(variant, hongguoMediaKeySeed(model, 0))
 		if len(addresses) == 0 {
 			continue
 		}
-		media := providerMedia{Referer: "https://novel.snssdk.com/", Duration: time.Duration(duration * float64(time.Second))}
+		media := providerMedia{Referer: "https://novel.snssdk.com/", Duration: time.Duration(duration * float64(time.Second)), credentials: &providerMediaCredentials{userAgent: "com.phoenix.read/71332"}}
 		encryption := nestedMap(variant, "encrypt_info")
-		spade := mapString(encryption, "spade_a")
+		spade := firstNonEmpty(mapString(variant, "spade_a"), mapString(encryption, "spade_a"))
 		if spade != "" || encryption["encrypt"] == true || mapString(encryption, "encryption_method") == "cenc-aes-ctr" {
 			var err error
-			media.CENCKey, err = hongguoContentKey(spade)
+			media.CENCKey, err = hongguoVideoContentKey(spade)
 			if err != nil {
 				keyErr = err
 				continue
 			}
 		}
 		height, _ := strconv.Atoi(mapString(meta, "vheight"))
-		if definition, err := strconv.Atoi(hongguoQualityNumber.FindString(mapString(meta, "definition"))); err == nil && definition > 0 {
-			height = definition
+		definition := firstNonEmpty(mapString(variant, "definition", "vheight"), mapString(meta, "definition"))
+		if value, err := strconv.Atoi(hongguoQualityNumber.FindString(definition)); err == nil && value > 0 {
+			height = value
 		} else if width, _ := strconv.Atoi(mapString(meta, "vwidth")); width > 0 && (height == 0 || width < height) {
 			height = width
 		}
