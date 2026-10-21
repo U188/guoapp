@@ -44,7 +44,17 @@ jobs:
           flutter-version: '3.47.4'
           channel: stable
           cache: true
-      - run: sdkmanager 'ndk;28.2.13676358'
+      - name: Install Android NDK
+        run: |
+          set -e
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SM="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n 1)"
+          if [ -z "$SM" ]; then SM="$(command -v sdkmanager || true)"; fi
+          if [ -z "$SM" ]; then echo "sdkmanager not found under $SDK"; ls -d "$SDK"/cmdline-tools/* 2>/dev/null || true; exit 1; fi
+          "$SM" --version
+          yes | "$SM" --licenses > /dev/null 2>&1 || true
+          "$SM" 'ndk;28.2.13676358'
+          ls -d "$SDK"/ndk/*
       - name: Configure Android signing
         run: python scripts/configure_signing.py
         env:
