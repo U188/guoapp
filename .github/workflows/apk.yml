@@ -113,6 +113,6 @@ jobs:
         continue-on-error: true
         with:
           tag_name: apk-${{ github.run_number }}
-          name: APK 0.2.51 build ${{ github.run_number }}
+          name: APK build ${{ github.run_number }}
           body: 预览构建，使用公共（debug）签名，未做真实站源播放验收。
           files: artifacts/*
