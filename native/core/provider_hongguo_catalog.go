@@ -34,6 +34,9 @@ func (downloader *Downloader) fetchHongguoAppCatalog(ctx context.Context) ([]Dra
 
 func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context, category string) ([]Drama, error) {
 	genres := hongguoAppGenres
+	if category == "" {
+		genres = hongguoAppGenres[:1]
+	}
 	if category != "" {
 		genres = nil
 		for _, genre := range hongguoAppGenres {
@@ -54,6 +57,9 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 	client := downloader.hongguoClient()
 	client.catalogMu.Lock()
 	defer client.catalogMu.Unlock()
+	if route, _ := hongguoWebGenre(category); route != "" {
+		return downloader.scanHongguoWebGenre(ctx, category)
+	}
 	more, _ := ctx.Value(libraryMoreKey{}).(bool)
 	update, _ := ctx.Value(libraryUpdateKey{}).(bool)
 	known, _ := ctx.Value(libraryKnownKey{}).(map[string]bool)
@@ -187,6 +193,18 @@ func (downloader *Downloader) fetchHongguoAppCatalogCategory(ctx context.Context
 		}
 		if !active {
 			break
+		}
+	}
+	if category == "" {
+		for _, genre := range hongguoAppGenres[1:] {
+			items, err := downloader.scanHongguoWebGenre(ctx, genre.key)
+			dramas = append(dramas, items...)
+			if err != nil {
+				failures = append(failures, fmt.Errorf("%s: %w", genre.name, err))
+			}
+			if ctx.Err() != nil {
+				break
+			}
 		}
 	}
 	sort.SliceStable(dramas, func(left, right int) bool { return dramas[left].DisplayTitle() < dramas[right].DisplayTitle() })

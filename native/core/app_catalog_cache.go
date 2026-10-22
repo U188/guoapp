@@ -16,6 +16,7 @@ type nativeCatalogState struct {
 	Page      int       `json:"page"`
 	HasMore   bool      `json:"hasMore"`
 	Warning   string    `json:"warning,omitempty"`
+	Schema    string    `json:"schema,omitempty"`
 }
 
 type nativeCatalogDisk struct {
@@ -49,6 +50,13 @@ func (engine *nativeEngine) loadCatalogCache() {
 		}
 		if disk.States != nil {
 			engine.catalogStates = disk.States
+		}
+		for key, state := range engine.catalogStates {
+			if hongguoWebCategoryCache(key) && state.Schema != "hongguo-web-v1" {
+				state.Page, state.HasMore, state.Warning = 0, true, ""
+				state.UpdatedAt = time.Time{}
+				engine.catalogStates[key] = state
+			}
 		}
 		engine.categoryOptions = disk.Categories
 		engine.recommendations = make(map[string]nativeRecommendationState)
@@ -224,6 +232,9 @@ func (engine *nativeEngine) saveCatalogCache(source string, result *nativeCatalo
 	if result.Warning != "" {
 		result.Page = max(1, state.Page)
 		result.HasMore = true
+	}
+	if hongguoWebCategoryCache(source) && result.Warning == "" {
+		state.Schema = "hongguo-web-v1"
 	}
 	state.Page, state.HasMore = result.Page, result.HasMore
 	state.Warning = result.Warning

@@ -586,6 +586,10 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 	var err error
 	switch source {
 	case sourceHongguo:
+		if route, _ := hongguoWebGenre(category); route != "" {
+			items, result.HasMore, err = d.fetchHongguoWebGenrePage(ctx, category, page)
+			break
+		}
 		engine.mu.Lock()
 		known := make(map[string]bool, len(engine.catalogs[cacheKey]))
 		for _, drama := range engine.catalogs[cacheKey] {

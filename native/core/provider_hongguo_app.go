@@ -85,6 +85,9 @@ func (downloader *Downloader) restoreHongguoCatalog(state *hongguoCatalogState) 
 		known := false
 		for _, genre := range hongguoAppGenres {
 			known = known || name == genre.key || name == "category:"+genre.key
+			if route, _ := hongguoWebGenre(genre.key); route != "" {
+				known = known || name == "web:"+genre.key
+			}
 		}
 		if !known || !cursor.Initialized || cursor.Offset < 0 || cursor.Offset > 1_000_000 || len(cursor.SessionID) > 4096 || len(cursor.LastID) > 256 || len(cursor.PageSignature) > 64 {
 			delete(cloned.Feeds, name)
@@ -120,7 +123,11 @@ func hongguoCatalogInitialized(state *hongguoCatalogState) bool {
 
 func hongguoCatalogHasMore(state *hongguoCatalogState) bool {
 	for _, genre := range hongguoAppGenres {
-		if state == nil || !state.Feeds[genre.key].Exhausted {
+		key := genre.key
+		if route, _ := hongguoWebGenre(key); route != "" {
+			key = "web:" + key
+		}
+		if state == nil || !state.Feeds[key].Exhausted {
 			return true
 		}
 	}
