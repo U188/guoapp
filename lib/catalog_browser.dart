@@ -151,9 +151,8 @@ class CatalogBrowser {
     for (final choice in _choices(group)) choice.category,
   ];
 
-  List<CatalogSortOption> sorts(SourceGroup group) => _mergeSorts([
-    for (final source in group.sources) ...?_sorts[source.id],
-  ]);
+  List<CatalogSortOption> sorts(SourceGroup group) =>
+      _mergeSorts([for (final source in group.sources) ...?_sorts[source.id]]);
 
   List<CatalogSortOption> _mergeSorts(List<CatalogSortOption> sorts) {
     final merged = <String, CatalogSortOption>{};
@@ -173,9 +172,10 @@ class CatalogBrowser {
     }
   }
 
-  _CatalogChoice? _choice(SourceGroup group, String category) => _choices(
-    group,
-  ).where((choice) => choice.category.id == category).firstOrNull;
+  _CatalogChoice? _choice(SourceGroup group, String category) =>
+      _choices(group)
+          .where((choice) => choice.category.id == category)
+          .firstOrNull;
 
   Future<CatalogPage> load(
     SourceGroup group, {

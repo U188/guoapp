@@ -152,9 +152,8 @@ class _SourcesScreenState extends State<SourcesScreen> {
     if (status.storageError.isNotEmpty) text.writeln(status.storageError);
     await Clipboard.setData(ClipboardData(text: text.toString()));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('诊断信息已复制')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('诊断信息已复制')));
     }
   }
 
@@ -164,15 +163,12 @@ class _SourcesScreenState extends State<SourcesScreen> {
       lines = await widget.repository.logs(limit: 300);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('读取运行日志失败：$error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('读取运行日志失败：$error')));
       return;
     }
     if (!mounted) return;
-    final text = lines.isEmpty
-        ? '暂无运行日志'
-        : lines.reversed.join('\n');
+    final text = lines.isEmpty ? '暂无运行日志' : lines.reversed.join('\n');
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -454,9 +450,9 @@ class _SourcesScreenState extends State<SourcesScreen> {
                                     Text(health.label),
                                     Text(
                                       sourceTimestamp(health.checkedAt),
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
                                     ),
                                   ],
                                 ),

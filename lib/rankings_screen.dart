@@ -351,12 +351,12 @@ class _RankingsScreenState extends State<RankingsScreen> {
                                           fontSize: 24,
                                           fontWeight: FontWeight.w800,
                                           color: item.rank <= 3
-                                              ? Theme.of(
-                                                  context,
-                                                ).colorScheme.primary
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.onSurfaceVariant,
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                              : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
                                         ),
                                       ),
                                     ),
@@ -379,9 +379,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
                                             item.drama.title,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.titleMedium,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium,
                                           ),
                                           if (item.drama.category.isNotEmpty)
                                             Text(
@@ -397,9 +397,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
                                               child: Text(
                                                 item.metric,
                                                 style: TextStyle(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
                                                 ),
                                               ),
                                             ),

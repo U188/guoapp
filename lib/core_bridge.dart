@@ -681,9 +681,7 @@ class NativeRepository extends AppRepository {
     final sorts = <CatalogSortOption>[];
     for (final row in rows) {
       if (row is! Map) continue;
-      final option = CatalogSortOption.fromJson(
-        Map<String, dynamic>.from(row),
-      );
+      final option = CatalogSortOption.fromJson(Map<String, dynamic>.from(row));
       if (option.id.isNotEmpty) sorts.add(option);
     }
     if (sorts.isEmpty) {
