@@ -172,10 +172,9 @@ class CatalogBrowser {
     }
   }
 
-  _CatalogChoice? _choice(SourceGroup group, String category) =>
-      _choices(group)
-          .where((choice) => choice.category.id == category)
-          .firstOrNull;
+  _CatalogChoice? _choice(SourceGroup group, String category) => _choices(
+    group,
+  ).where((choice) => choice.category.id == category).firstOrNull;
 
   Future<CatalogPage> load(
     SourceGroup group, {

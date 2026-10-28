@@ -104,8 +104,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   void _message(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
