@@ -78,9 +78,9 @@ class CatalogSortOption {
   final String name;
   factory CatalogSortOption.fromJson(Map<String, dynamic> json) =>
       CatalogSortOption(
-    json['id'] as String? ?? '',
-    json['name'] as String? ?? '',
-  );
+        json['id'] as String? ?? '',
+        json['name'] as String? ?? '',
+      );
 }
 
 class CatalogCategory {

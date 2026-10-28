@@ -151,13 +151,17 @@ class CatalogBrowser {
     for (final choice in _choices(group)) choice.category,
   ];
 
-  List<CatalogSortOption> sorts(SourceGroup group) => [
-    for (final source in group.sources)
-      ...(_sorts[source.id] ?? const <CatalogSortOption>[]),
-  ].fold(<String, CatalogSortOption>{}, (merged, entry) {
-    merged.putIfAbsent(entry.id, () => entry);
-    return merged;
-  }).values.toList();
+  List<CatalogSortOption> sorts(SourceGroup group) => _mergeSorts([
+    for (final source in group.sources) ...?_sorts[source.id],
+  ]);
+
+  List<CatalogSortOption> _mergeSorts(List<CatalogSortOption> sorts) {
+    final merged = <String, CatalogSortOption>{};
+    for (final option in sorts) {
+      merged.putIfAbsent(option.id, () => option);
+    }
+    return merged.values.toList();
+  }
 
   final _sorts = <String, List<CatalogSortOption>>{};
 

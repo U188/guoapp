@@ -258,7 +258,8 @@ class _SourcesScreenState extends State<SourcesScreen> {
                           leading: const Icon(Icons.hub_outlined),
                           title: const Text('黄果'),
                           subtitle: Text(
-                            '${group.sources.length} 个入口 · ${group.sources.fold<int>(0, (count, source) => count + (_statuses[source.id]?.count ?? 0))} 部',
+                            '${group.sources.length} 个入口 · '
+                            '${group.sources.fold<int>(0, (count, source) => count + (_statuses[source.id]?.count ?? 0))} 部',
                           ),
                           childrenPadding: const EdgeInsets.all(8),
                           children: [

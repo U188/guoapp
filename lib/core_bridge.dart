@@ -678,11 +678,14 @@ class NativeRepository extends AppRepository {
 
   void _rememberSorts(String source, Object? rows) {
     if (rows is! List) return;
-    final sorts = [
-      for (final row in rows)
-        if (row is Map)
-          CatalogSortOption.fromJson(Map<String, dynamic>.from(row)),
-    ].where((entry) => entry.id.isNotEmpty).toList();
+    final sorts = <CatalogSortOption>[];
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final option = CatalogSortOption.fromJson(
+        Map<String, dynamic>.from(row),
+      );
+      if (option.id.isNotEmpty) sorts.add(option);
+    }
     if (sorts.isEmpty) {
       _sorts.remove(source);
     } else {
