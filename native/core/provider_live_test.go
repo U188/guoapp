@@ -26,6 +26,7 @@ func TestLiveProviderCatalogRankingDetailAndPlaybackSmoke(t *testing.T) {
 		{source: sourceHuangju, board: "huangju-hot"},
 		{source: sourceYeguo, board: "yeguo-recommend"},
 		{source: sourceDSD, board: "dsd-catalog"},
+		{source: sourceXChina, board: "xchina-recent"},
 	} {
 		t.Run(scenario.source, func(t *testing.T) {
 			dramas, more, err := fetchLiveCatalogPage(ctx, engine.downloader, scenario.source)
@@ -92,6 +93,8 @@ func fetchLiveCatalogPage(ctx context.Context, d *Downloader, source string) ([]
 		return d.fetchHuangjuCatalogPage(ctx, 1, "", "")
 	case sourceYeguo:
 		return d.fetchYeguoCatalogPage(ctx, 1, "", "")
+	case sourceXChina:
+		return d.fetchXChinaCatalogPage(ctx, 1, "recent", "")
 	case sourceDSD:
 		return d.fetchDSDCatalogPage(ctx, 1, "", "")
 	default:
@@ -105,6 +108,8 @@ func fetchLiveDetail(ctx context.Context, d *Downloader, source, sourceID string
 		return d.fetchHuangjuDetail(ctx, sourceID)
 	case sourceYeguo:
 		return d.fetchYeguoDetail(ctx, sourceID)
+	case sourceXChina:
+		return d.fetchXChinaDetail(ctx, sourceID)
 	case sourceDSD:
 		return d.fetchDSDDetail(ctx, sourceID)
 	default:

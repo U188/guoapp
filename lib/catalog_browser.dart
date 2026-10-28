@@ -111,6 +111,7 @@ class CatalogBrowser {
           source.id,
           force: force,
         );
+        _rememberSorts(source.id, await repository.sorts(source.id));
       } catch (_) {
         failures.add(source.groupName);
       }
@@ -150,6 +151,24 @@ class CatalogBrowser {
     for (final choice in _choices(group)) choice.category,
   ];
 
+  List<CatalogSortOption> sorts(SourceGroup group) => [
+    for (final source in group.sources)
+      ...(_sorts[source.id] ?? const <CatalogSortOption>[]),
+  ].fold(<String, CatalogSortOption>{}, (merged, entry) {
+    merged.putIfAbsent(entry.id, () => entry);
+    return merged;
+  }).values.toList();
+
+  final _sorts = <String, List<CatalogSortOption>>{};
+
+  void _rememberSorts(String source, List<CatalogSortOption> sorts) {
+    if (sorts.isEmpty) {
+      _sorts.remove(source);
+    } else {
+      _sorts[source] = sorts;
+    }
+  }
+
   _CatalogChoice? _choice(SourceGroup group, String category) => _choices(
     group,
   ).where((choice) => choice.category.id == category).firstOrNull;
@@ -157,6 +176,7 @@ class CatalogBrowser {
   Future<CatalogPage> load(
     SourceGroup group, {
     String category = '',
+    String sort = '',
     String query = '',
     bool more = false,
     bool force = false,
@@ -179,7 +199,7 @@ class CatalogBrowser {
         : {for (final source in group.sources) source.id: ''};
     final key =
         '${group.sources.map((s) => s.id).join(',')}|'
-        '${choice?.category.local == false ? category : ''}|$query';
+        '${choice?.category.local == false ? category : ''}|$query|$sort';
     final session = _sessions.putIfAbsent(key, _CatalogSession.new);
     final generation = ++session.generation;
     final failures = <String, String>{};
@@ -258,6 +278,7 @@ class CatalogBrowser {
         final result = await repository.catalog(
           source,
           category: requests[source]!,
+          sort: sort,
           query: query,
           page: page,
           force: force,

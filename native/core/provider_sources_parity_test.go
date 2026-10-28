@@ -202,7 +202,8 @@ func TestProviderCatalogRankingsUseProviderCatalogPages(t *testing.T) {
 			if request.URL.Path == "/auth/guest" {
 				return sourceFixtureResponse(request, http.StatusOK, `{"token":"guest-token"}`), nil
 			}
-			if request.URL.Path != "/dramas" || request.URL.Query().Get("page") != "2" || request.URL.Query().Get("sort") != "hot" {
+			query := request.URL.Query()
+			if request.URL.Path != "/dramas" || query.Get("page") != "2" || query.Get("sort") != "hot" || query.Get("category") != "" {
 				t.Fatalf("unexpected huangju ranking request: %s", request.URL.String())
 			}
 			return sourceFixtureResponse(request, http.StatusOK, `{"items":[{"id":"201","slug":"rank-a","title":"剧果榜一"},{"id":"202","slug":"rank-b","title":"剧果榜二"}],"page":2,"pageSize":20,"total":22}`), nil

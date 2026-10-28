@@ -61,6 +61,8 @@ func validNativeCategory(source, category string) bool {
 		return category == huangjuNewestCategory || validHuangjuID(category) && !strings.HasPrefix(category, "@")
 	case sourceYeguo:
 		return validYeguoCategory(category)
+	case sourceXChina:
+		return validXChinaCategory(category)
 	case sourceDSD:
 		return webProviderNumericID.MatchString(category)
 	}
@@ -114,6 +116,12 @@ func (engine *nativeEngine) nativeCategories(ctx context.Context, source string,
 	case sourceYeguo:
 		var categories []nativeCategory
 		categories, err = d.fetchYeguoCategories(ctx)
+		if err == nil {
+			all = append(all, categories...)
+		}
+	case sourceXChina:
+		var categories []nativeCategory
+		categories, err = d.fetchXChinaCategories(ctx)
 		if err == nil {
 			all = append(all, categories...)
 		}
@@ -215,4 +223,47 @@ func (d *Downloader) fetchHuangguoAICatalogPage(ctx context.Context, page int, c
 		}
 	}
 	return items, more, errors.Join(failures...)
+}
+
+// catalogSortOptions 返回某站源支持的排序筛选值，用于校验前端传来的 sort。
+func catalogSortOptions(source string) []string {
+	switch canonicalProviderSource(source) {
+	case sourceHuangju:
+		return []string{"latest", "hot"}
+	case sourceXChina:
+		values := make([]string, 0, len(xchinaSortOptions))
+		for _, option := range xchinaSortOptions {
+			values = append(values, option.ID)
+		}
+		return values
+	}
+	return nil
+}
+
+// catalogSortChoices 是排序筛选的唯一事实来源：Dart 侧直接消费它，
+// 不再各自硬编码，避免两侧选项不同步导致参数被静默降级。
+func catalogSortChoices(source string) []map[string]any {
+	switch canonicalProviderSource(source) {
+	case sourceHuangju:
+		return []map[string]any{
+			{"id": "latest", "name": "最新"},
+			{"id": "hot", "name": "最热"},
+		}
+	case sourceXChina:
+		choices := make([]map[string]any, 0, len(xchinaSortOptions))
+		for _, option := range xchinaSortOptions {
+			choices = append(choices, map[string]any{"id": option.ID, "name": option.Name})
+		}
+		return choices
+	}
+	return nil
+}
+
+func validCatalogSort(source, sort string) bool {
+	for _, option := range catalogSortOptions(source) {
+		if option == sort {
+			return true
+		}
+	}
+	return false
 }

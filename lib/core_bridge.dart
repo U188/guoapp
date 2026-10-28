@@ -114,6 +114,7 @@ abstract class AppRepository {
     String source, {
     bool force = false,
   }) async => const [CatalogCategory.all];
+  Future<List<CatalogSortOption>> sorts(String source) async => const [];
   bool get supportsSourceManagement => false;
   Future<SourceStatus> sourceStatus(String source) async =>
       SourceStatus.fromJson({'source': source});
@@ -176,6 +177,7 @@ abstract class AppRepository {
     int page = 1,
     String query = '',
     String category = '',
+    String sort = '',
     bool force = false,
   });
   Future<CatalogPage> cached(String source, {String category = ''});
@@ -665,11 +667,32 @@ class NativeRepository extends AppRepository {
       'source': source,
       'force': force,
     });
+    _rememberSorts(source, result['sorts']);
     return [
       for (final row in result['items'] as List? ?? const [])
         CatalogCategory.fromJson(Map<String, dynamic>.from(row as Map)),
     ];
   }
+
+  final _sorts = <String, List<CatalogSortOption>>{};
+
+  void _rememberSorts(String source, Object? rows) {
+    if (rows is! List) return;
+    final sorts = [
+      for (final row in rows)
+        if (row is Map)
+          CatalogSortOption.fromJson(Map<String, dynamic>.from(row)),
+    ].where((entry) => entry.id.isNotEmpty).toList();
+    if (sorts.isEmpty) {
+      _sorts.remove(source);
+    } else {
+      _sorts[source] = sorts;
+    }
+  }
+
+  @override
+  Future<List<CatalogSortOption>> sorts(String source) async =>
+      _sorts[source] ?? const [];
 
   @override
   Future<CatalogPage> catalog(
@@ -677,6 +700,7 @@ class NativeRepository extends AppRepository {
     int page = 1,
     String query = '',
     String category = '',
+    String sort = '',
     bool force = false,
   }) async => CatalogPage.fromJson(
     await _read('catalog-$source', {
@@ -685,6 +709,7 @@ class NativeRepository extends AppRepository {
       'page': page,
       'query': query,
       'category': category,
+      'sort': sort,
       'force': force,
     }),
   );

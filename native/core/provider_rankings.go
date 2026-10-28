@@ -37,6 +37,8 @@ var rankingBoards = []rankingBoard{
 	{ID: "huangju-hot", Source: sourceHuangju, Name: "热门榜", Description: "剧果目录热门顺序，按源站返回顺序展示。"},
 	{ID: "huangju-new", Source: sourceHuangju, Name: "最新榜", Description: "剧果最新目录顺序，按源站返回顺序展示。", path: huangjuNewestCategory},
 	{ID: "yeguo-recommend", Source: sourceYeguo, Name: "目录榜", Description: "野果默认目录顺序，按源站返回顺序展示。"},
+	{ID: "xchina-recent", Source: sourceXChina, Name: "最新", Description: "XChina 最新更新顺序，按源站返回顺序展示。"},
+	{ID: "xchina-hot", Source: sourceXChina, Name: "最热", Description: "XChina 当前最热顺序，按源站返回顺序展示。"},
 	{ID: "dsd-catalog", Source: sourceDSD, Name: "目录榜", Description: "帝果分类目录聚合顺序，按源站返回顺序展示。"},
 }
 
@@ -181,7 +183,7 @@ func (d *Downloader) fetchRankingPage(ctx context.Context, board rankingBoard, p
 			return rankingPage{}, err
 		}
 		return parseHuangguoRanking(body, board)
-	case sourceHuangju, sourceYeguo, sourceDSD:
+	case sourceHuangju, sourceYeguo, sourceXChina, sourceDSD:
 		return d.fetchCatalogRankingPage(ctx, board, page)
 	default:
 		return rankingPage{}, fmt.Errorf("不支持的榜单站源 %s", board.Source)
@@ -213,6 +215,8 @@ func (d *Downloader) fetchCatalogRankingPage(ctx context.Context, board rankingB
 		items, more, err = d.fetchHuangjuCatalogPage(ctx, page, category, "")
 	case sourceYeguo:
 		items, more, err = d.fetchYeguoCatalogPage(ctx, page, category, "")
+	case sourceXChina:
+		items, more, err = d.fetchXChinaCatalogPage(ctx, page, xchinaRankingCategory(board), "")
 	case sourceDSD:
 		items, more, err = d.fetchDSDCatalogPage(ctx, page, category, "")
 	}
@@ -227,4 +231,15 @@ func (d *Downloader) fetchCatalogRankingPage(ctx context.Context, board rankingB
 		result.Items = append(result.Items, rankingItem{Rank: (page-1)*20 + index + 1, Drama: rankingDramaWithoutImages(drama)})
 	}
 	return result, nil
+}
+
+// xchinaRankingCategory 把 XChina 榜单 ID 映射到站点频道 type。
+func xchinaRankingCategory(board rankingBoard) string {
+	switch board.ID {
+	case "xchina-recent":
+		return "recent"
+	case "xchina-hot":
+		return "hot"
+	}
+	return board.path
 }

@@ -39,3 +39,28 @@
 不要查看、下载、分析或处理站源图片。页面可正常显示海报地址；开发验证使用合成数据或拦截图片请求。用户直接提供的界面截图可以查看。
 
 遵守先实现后集中验证的节奏；未经用户明确要求，不启动子 AGENT。
+
+## 站源接入清单（新增一个 provider 时必须同步的位置）
+
+Go 侧 `native/core`：
+
+- `provider_<src>_client.go`：域名常量、传输层、签名/加密、限流与重定向校验。
+- `provider_<src>.go`：`fetch<Src>Categories` / `fetch<Src>CatalogPage` / `fetch<Src>Detail` / `resolve<Src>Media`。
+- `provider_huangguo.go`：`source<Xxx>` 常量、`canonicalProviderSource`、章节分发 `providerEpisodes`。
+- `provider_media.go`：`providerBaseURL`、`providerSourceForURL`（含图片域名）、`resolveProviderMedia` 分支。
+- `app_runtime.go`：`Config` 端点字段、`Downloader` 懒加载字段、`nativeInput.Sort`、`nativeCatalog` 目录/搜索分支与缓存键、`nativeDetail` 分支、集数特判。
+- `app_categories.go`：`validNativeCategory`、`nativeCategories`、`catalogSortOptions` / `catalogSortChoices` / `validCatalogSort`。
+- `app_cover_metadata.go`：`nativeCoverAddress` 分支。
+- `provider_rankings.go`：`rankingBoards` 条目、`fetchCatalogRankingPage` 分支。
+- 测试：`provider_<src>_test.go` 覆盖解密/解析/参数校验，`provider_sources_parity_test.go` 覆盖分发点注册，`provider_live_test.go` 覆盖真机网络冒烟。
+
+Dart 侧 `lib`：
+
+- `models.dart`：`SourceSite` 的两处列表（`knownValues` / `allValues`）、`pagedSearch` 白名单、`CatalogSortOption` 模型。
+- `ranking_models.dart`：`sourceForID` 榜单映射。
+- `core_bridge.dart`：`AppRepository` 抽象与 `NativeRepository` 实现都要加 `catalog(sort:)` 与 `sorts()`；`sorts` 由 `categories` 响应里的 `sorts` 字段回填。
+- `catalog_browser.dart`：`load(sort:)` 透传并把 `sort` 纳入会话 key，`sorts(group)` 供 UI 消费。
+- `home_screen.dart`：`_sortSelections` / `_sort` / `_sortChoices` / `_changeSort` 与 `PopupMenuButton`（key `catalog-sort-<group>`）。
+- `local_media_screen.dart`：代理仓库需同步转发 `catalog(sort:)` 与 `sorts()`。
+
+注意：`lib/catalog_sort.dart` 里已有 `enum CatalogSort`（本地排序方式），站源下发的排序项命名为 `CatalogSortOption`，不要复用。

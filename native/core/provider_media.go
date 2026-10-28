@@ -37,6 +37,8 @@ func (d *Downloader) providerBaseURL(source string) string {
 		configured, fallback = d.cfg.HuangjuURL, huangjuBaseURL
 	case sourceYeguo:
 		configured, fallback = d.cfg.YeguoURL, yeguoBaseURL
+	case sourceXChina:
+		configured, fallback = d.cfg.XChinaURL, xchinaBaseURL
 	case sourceDSD:
 		configured, fallback = d.cfg.DSDURL, dsdBaseURL
 	default:
@@ -67,6 +69,8 @@ func providerSourceForURL(raw string) string {
 		strings.HasSuffix(host, ".fzchosdi.cc") ||
 		host == "delta.ygrwdsgt.cc" || host == "yeguodj.com" || host == "www.yeguodj.com":
 		return sourceYeguo
+	case host == "xchina.tube" || host == "www.xchina.tube":
+		return sourceXChina
 	case host == "dsd.com.se" || host == "www.dsd.com.se":
 		return sourceDSD
 	default:
@@ -76,7 +80,7 @@ func providerSourceForURL(raw string) string {
 
 func (d *Downloader) providerURLCandidates(raw string) []string {
 	source := providerSourceForURL(raw)
-	if source == "" || source == sourceHuangju || source == sourceYeguo {
+	if source == "" || source == sourceHuangju || source == sourceYeguo || source == sourceXChina {
 		return []string{raw}
 	}
 	parsed, _ := url.Parse(raw)
@@ -117,6 +121,9 @@ func (d *Downloader) resolveProviderMedia(ctx context.Context, task Task) (provi
 	}
 	if chapter.Source == sourceYeguo {
 		return d.resolveYeguoMedia(ctx, task)
+	}
+	if chapter.Source == sourceXChina {
+		return d.resolveXChinaMedia(ctx, task)
 	}
 	if chapter.Source == sourceDSD {
 		return d.resolveDSDMedia(ctx, task)

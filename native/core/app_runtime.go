@@ -30,6 +30,10 @@ type Config struct {
 	HuangjuAPIURL    string
 	YeguoURL         string
 	YeguoAPIURL      string
+	XChinaURL        string
+	XChinaAPIURL     string
+	XChinaImageURL   string
+	XChinaToken      string
 	DSDURL           string
 	Token            string
 	AESKeyHex        string
@@ -56,6 +60,8 @@ type Downloader struct {
 	huangju               *huangjuAPIClient
 	yeguoOnce             sync.Once
 	yeguo                 *yeguoAPIClient
+	xchinaOnce            sync.Once
+	xchina                *xchinaAPIClient
 	dsdCatalog            dsdCatalogState
 	diagnostics           *diagnosticLog
 	apiMu                 sync.Mutex
@@ -107,6 +113,7 @@ type nativeInput struct {
 	Limit            int                     `json:"limit"`
 	Query            string                  `json:"query"`
 	Category         string                  `json:"category"`
+	Sort             string                  `json:"sort"`
 	Drama            nativeDrama             `json:"drama"`
 	Chapter          Chapter                 `json:"chapter"`
 	Index            int                     `json:"index"`
@@ -442,7 +449,10 @@ func nativeDispatch(input nativeInput) (any, error) {
 		return engine.nativeCached(nativeCatalogKey(input.Source, input.Category)), nil
 	case "categories":
 		items, err := engine.nativeCategories(ctx, input.Source, input.Force)
-		return map[string]any{"items": items}, err
+		if err != nil {
+			return map[string]any{"items": items}, err
+		}
+		return map[string]any{"items": items, "sorts": catalogSortChoices(input.Source)}, nil
 	case "sourceStatus":
 		return engine.sourceStatus(input.Source), nil
 	case "sourceJob":
@@ -493,7 +503,14 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 	if !validNativeCategory(source, category) {
 		return nativeCatalogResult{}, errors.New("内容分类无效")
 	}
+	sort := strings.TrimSpace(input.Sort)
+	if sort != "" && !validCatalogSort(source, sort) {
+		sort = ""
+	}
 	cacheKey := nativeCatalogKey(source, category)
+	if sort != "" {
+		cacheKey += "|sort:" + sort
+	}
 	if err := ctx.Err(); err != nil {
 		return nativeCatalogResult{}, err
 	}
@@ -539,13 +556,16 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		result.HasMore = more
 		return result, nil
 	}
-	if query != "" && (source == sourceYeguo || source == sourceDSD) {
+	if query != "" && (source == sourceYeguo || source == sourceXChina || source == sourceDSD) {
 		var items []Drama
 		var more bool
 		var err error
-		if source == sourceYeguo {
+		switch source {
+		case sourceYeguo:
 			items, more, err = d.fetchYeguoCatalogPage(ctx, page, "", query)
-		} else {
+		case sourceXChina:
+			items, more, err = d.fetchXChinaCatalogPage(ctx, page, "", query)
+		default:
 			items, more, err = d.fetchDSDCatalogPage(ctx, page, "", query)
 		}
 		if err != nil {
@@ -631,6 +651,12 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		items, result.HasMore, err = d.fetchHuangjuCatalogPage(ctx, page, category, "")
 	case sourceYeguo:
 		items, result.HasMore, err = d.fetchYeguoCatalogPage(ctx, page, category, "")
+	case sourceXChina:
+		if sort != "" {
+			items, result.HasMore, err = d.fetchXChinaCatalogPageSorted(ctx, page, category, sort)
+		} else {
+			items, result.HasMore, err = d.fetchXChinaCatalogPage(ctx, page, category, "")
+		}
 	case sourceDSD:
 		items, result.HasMore, err = d.fetchDSDCatalogPage(ctx, page, category, "")
 	case sourceHuangguoVideo:
@@ -650,7 +676,7 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 	if err != nil && len(items) == 0 {
 		return result, err
 	}
-	if len(items) == 0 && page == 1 && source != sourceHuangju && source != sourceYeguo && source != sourceDSD {
+	if len(items) == 0 && page == 1 && source != sourceHuangju && source != sourceYeguo && source != sourceDSD && source != sourceXChina {
 		return result, errors.New("站源暂未返回剧集，请稍后刷新")
 	}
 	if err != nil {
@@ -688,6 +714,8 @@ func (engine *nativeEngine) nativeDetail(ctx context.Context, drama nativeDrama)
 		raw, chapters, err = engine.downloader.fetchHuangjuDetail(ctx, sourceID)
 	case sourceYeguo:
 		raw, chapters, err = engine.downloader.fetchYeguoDetail(ctx, sourceID)
+	case sourceXChina:
+		raw, chapters, err = engine.downloader.fetchXChinaDetail(ctx, sourceID)
 	case sourceDSD:
 		raw, chapters, err = engine.downloader.fetchDSDDetail(ctx, sourceID)
 	default:
@@ -718,7 +746,7 @@ func (engine *nativeEngine) nativeDetail(ctx context.Context, drama nativeDrama)
 		}
 	}
 	drama.Source, drama.SourceID, drama.Episodes = source, sourceID, len(chapters)
-	if source == sourceHuangju || source == sourceYeguo {
+	if source == sourceHuangju || source == sourceYeguo || source == sourceXChina {
 		drama.Episodes = max(drama.Episodes, nativeNormalize(raw).Episodes)
 	}
 	warning := ""

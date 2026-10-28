@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   String _submittedQuery = '';
   final _categorySelections = <String, String>{};
+  final _sortSelections = <String, String>{};
   late final CatalogBrowser _browser;
   bool _searchVisible = false;
   bool _categoriesLoading = false;
@@ -99,6 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String get _category => _categorySelections[_group.id] ?? '';
+  String get _sort => _sortSelections[_group.id] ?? '';
+  List<CatalogSortOption> get _sortChoices => _browser.sorts(_group);
   List<CatalogCategory> get _categories => _browser.categories(_group);
   String get _displayCategory =>
       _showRecommendations ? _recommendationCategory : _category;
@@ -511,6 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await _browser.load(
         group,
         category: _category,
+        sort: _sort,
         query: query,
         more: more,
         useCache: useCache,
@@ -572,6 +576,19 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_onlineSearch && query.trim().isEmpty) {
       _debounce = Timer(const Duration(milliseconds: 300), () => _load());
     }
+  }
+
+  Future<void> _changeSort(String sort) async {
+    if (_sort == sort) return;
+    _debounce?.cancel();
+    setState(() {
+      _sortSelections[_group.id] = sort;
+      _items = [];
+      _hasMore = true;
+      _error = null;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    await _load(useCache: true);
   }
 
   void _submitSearch(String query) {
@@ -1188,6 +1205,21 @@ class _HomeScreenState extends State<HomeScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_sortChoices.isNotEmpty)
+                PopupMenuButton<String>(
+                  key: ValueKey('catalog-sort-${_group.id}'),
+                  tooltip: '排序',
+                  initialValue: _sort,
+                  onSelected: _changeSort,
+                  itemBuilder: (context) => [
+                    for (final option in _sortChoices)
+                      PopupMenuItem<String>(
+                        value: option.id,
+                        child: Text(option.name),
+                      ),
+                  ],
+                  icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                ),
               if (_supportsVipFilter)
                 IconButton(
                   tooltip: widget.store.hideVip ? 'VIP：隐藏' : 'VIP：显示',

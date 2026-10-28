@@ -27,6 +27,7 @@ class RankingBoard {
     'huangguo-potential' => 'huangguoai',
     'huangju-hot' || 'huangju-new' => 'huangju',
     'yeguo-recommend' => 'yeguo',
+    'xchina-recent' || 'xchina-hot' => 'xchina',
     'dsd-catalog' => 'dsd',
     _ => '',
   };

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"sort"
@@ -47,10 +48,17 @@ func reportHongguoSearchProgress(ctx context.Context, entry hongguoSearchEntry) 
 	}
 }
 
+// hongguoSearchKeyword 规整关键词。
+// 站点 /api/search/result 限制 query 最多 30 个字符，超出直接返回
+// 400 invalid_query，因此在发起请求前就截断，避免把超长词打到服务端。
 func hongguoSearchKeyword(keyword string) (string, error) {
 	keyword = norm.NFKC.String(strings.TrimSpace(keyword))
 	if keyword == "" || !utf8.ValidString(keyword) || utf8.RuneCountInString(keyword) > 80 || strings.IndexFunc(keyword, unicode.IsControl) >= 0 {
 		return "", errors.New("请输入 1 至 80 个字符的搜索词")
+	}
+	runes := []rune(keyword)
+	if len(runes) > hongguoSearchMaxQueryRunes {
+		keyword = string(runes[:hongguoSearchMaxQueryRunes])
 	}
 	return keyword, nil
 }
@@ -291,15 +299,31 @@ func hongguoTitleSearchRank(title, query string) int {
 	}
 }
 
+// 红果站点的 /search/<kw> 页面已改为纯前端渲染，不再内嵌 _ROUTER_DATA
+// （实测返回 37KB 外壳、_ROUTER_DATA 出现 0 次），因此搜索改走 JSON 接口。
+const (
+	hongguoSearchAPI           = "/api/search/result"
+	hongguoSearchAPIAid        = "8662"
+	hongguoSearchMaxQueryRunes = 30
+)
+
 func (downloader *Downloader) fetchHongguoSearchPage(ctx context.Context, keyword string) (hongguoSearchEntry, error) {
-	pageURL := hongguoBaseURL + "/search/" + url.PathEscape(keyword)
+	pageURL := hongguoBaseURL + hongguoSearchAPI + "?query=" + url.QueryEscape(keyword) +
+		"&aid=" + hongguoSearchAPIAid
 	body, err := downloader.fetchProviderText(ctx, pageURL, hongguoBaseURL+"/")
 	if err != nil {
 		return hongguoSearchEntry{}, err
 	}
-	page := routerLoaderMap(parseRouterData(body), "search_(keyword)/page", "search_")
+	page, err := parseHongguoJSONMap(body)
+	if err != nil {
+		return hongguoSearchEntry{}, err
+	}
+	// 接口可能返回裸对象，也可能包一层 data。
+	if data, ok := page["data"].(map[string]any); ok && len(data) > 0 {
+		page = data
+	}
 	rows, valid := page["searchList"].([]any)
-	if page["isSuccess"] != true || !valid || mapString(page, "query") != keyword {
+	if !valid {
 		return hongguoSearchEntry{}, errors.New("红果搜索未返回有效结果")
 	}
 	entry := hongguoSearchEntry{Dramas: make([]Drama, 0, len(rows))}
@@ -325,3 +349,22 @@ func (downloader *Downloader) fetchHongguoSearchPage(ctx context.Context, keywor
 	}
 	return entry, nil
 }
+
+// parseHongguoJSONMap 解析接口 JSON。站点可能在前面加 BOM 或返回空体。
+func parseHongguoJSONMap(body string) (map[string]any, error) {
+	text := strings.TrimSpace(strings.TrimPrefix(body, "\ufeff"))
+	if text == "" {
+		return nil, errors.New("红果搜索接口返回空响应")
+	}
+	if len(text) > 8<<20 {
+		return nil, errors.New("红果搜索接口响应过大")
+	}
+	var payload map[string]any
+	decoder := json.NewDecoder(strings.NewReader(text))
+	decoder.UseNumber()
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, errors.New("红果搜索接口返回的不是 JSON")
+	}
+	return payload, nil
+}
+

@@ -404,12 +404,14 @@ class _LocalFileRepository extends AppRepository {
     int page = 1,
     String query = '',
     String category = '',
+    String sort = '',
     bool force = false,
   }) => parent.catalog(
     source,
     page: page,
     query: query,
     category: category,
+    sort: sort,
     force: force,
   );
   @override
@@ -420,6 +422,8 @@ class _LocalFileRepository extends AppRepository {
     String source, {
     bool force = false,
   }) => parent.categories(source, force: force);
+  @override
+  Future<List<CatalogSortOption>> sorts(String source) => parent.sorts(source);
   @override
   Future<String> cover(Drama drama, {bool force = false}) =>
       parent.cover(drama, force: force);

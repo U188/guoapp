@@ -140,6 +140,58 @@ func (d *Downloader) fetchHuangjuCategories(ctx context.Context) ([]nativeCatego
 	return categories, nil
 }
 
+// fetchHuangjuCatalogPageSorted 在普通目录之上叠加站点排序参数。
+// 站点 sort 取值为 latest | hot；sort 非法时退回普通目录。
+func (d *Downloader) fetchHuangjuCatalogPageSorted(ctx context.Context, page int, category, sort string) ([]Drama, bool, error) {
+	sort = strings.TrimSpace(sort)
+	if sort != "latest" && sort != "hot" {
+		return d.fetchHuangjuCatalogPage(ctx, page, category, "")
+	}
+	if page < 1 || page > 1000000 || !validNativeCategory(sourceHuangju, category) {
+		return nil, false, errors.New("剧果目录查询参数无效")
+	}
+	// 排序与频道互斥：站点在带 category 时会忽略 sort，两个参数不叠加。
+	// 「最新」频道本身等价于 sort=new，此时只传 sort。
+	values := url.Values{"page": {strconv.Itoa(page)}}
+	if category == "" || category == huangjuNewestCategory {
+		values.Set("sort", sort)
+	} else {
+		values.Set("category", category)
+	}
+	response, err := d.huangjuClient().get(ctx, "/dramas", values, 4<<20)
+	if err != nil {
+		return nil, false, err
+	}
+	row, _ := huangjuPayload(response.value).(map[string]any)
+	rows, valid := row["items"].([]any)
+	if !valid || len(rows) > 500 {
+		return nil, false, errors.New("剧果目录数据格式无效")
+	}
+	if len(rows) == 0 {
+		return d.fetchHuangjuCatalogPage(ctx, page, category, "")
+	}
+	pageSize := 20
+	if value, ok := huangjuInteger(row["pageSize"], 500); ok && value > 0 {
+		pageSize = value
+	}
+	hasMore := len(rows) >= pageSize
+	if total, ok := huangjuInteger(row["total"], 100000000); ok && total >= len(rows) {
+		hasMore = page < (total+pageSize-1)/pageSize
+	}
+	items := make([]Drama, 0, len(rows))
+	seen := map[string]bool{}
+	for _, entry := range rows {
+		value, _ := entry.(map[string]any)
+		drama, err := huangjuDramaFromMap(value, d.providerBaseURL(sourceHuangju), "")
+		if err != nil || seen[drama.ID] {
+			continue
+		}
+		seen[drama.ID] = true
+		items = append(items, drama)
+	}
+	return items, hasMore, nil
+}
+
 func (d *Downloader) fetchHuangjuCatalogPage(ctx context.Context, page int, category, query string) ([]Drama, bool, error) {
 	if page < 1 || page > 1000000 || len(query) > 1024 || !validNativeCategory(sourceHuangju, category) {
 		return nil, false, errors.New("剧果目录查询参数无效")
@@ -149,6 +201,8 @@ func (d *Downloader) fetchHuangjuCatalogPage(ctx context.Context, page int, cate
 	case query != "":
 		values.Set("q", query)
 	case category == huangjuNewestCategory:
+		// 站点 sort 语义：new=纯时间倒序（真最新，id 严格递减 3834→3825）、
+		// latest=混合推荐、hot=最热。判断依据必须是 id 单调性而非首条标题。
 		values.Set("sort", "new")
 	case category == "":
 		values.Set("sort", "hot")
