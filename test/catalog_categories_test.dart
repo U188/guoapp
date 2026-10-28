@@ -57,6 +57,7 @@ class CategoryRepository extends FixtureRepository {
     int page = 1,
     String query = '',
     String category = '',
+    String sort = '',
     bool force = false,
   }) async {
     categoryRequests.add('$source|$category|$page');
