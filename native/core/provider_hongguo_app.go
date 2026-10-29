@@ -197,7 +197,7 @@ func (downloader *Downloader) hongguoAppRequest(ctx context.Context, method, pat
 		response, err := downloader.doPreparedCatalogRequest(request, 20*time.Second, func(prepared *http.Request) {
 			now := time.Now()
 			query.Set("_rticket", strconv.FormatInt(now.UnixMilli(), 10))
-			prepared.URL.RawQuery = query.Encode()
+			prepared.URL.RawQuery = hongguoEncodeQuery(query.Encode())
 			if comment {
 				signHongguoCommentRequest(prepared, commentNonce, now)
 			} else {

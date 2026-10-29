@@ -44,4 +44,5 @@ func signHongguoRequest(request *http.Request, body []byte, now time.Time) {
 	request.Header.Set("X-Khronos", strconv.FormatUint(uint64(timestamp), 10))
 	request.Header.Set("X-Gorgon", hex.EncodeToString(signature))
 	request.Header.Set("X-SS-Req-Ticket", strconv.FormatInt(now.UnixMilli(), 10))
+	signHongguoPlatform(request, body, now)
 }

@@ -51,14 +51,10 @@ func signHongguoVideoRequest(request *http.Request, body []byte, now time.Time, 
 	request.Header.Set("X-SS-Req-Ticket", strconv.FormatInt(now.UnixMilli(), 10))
 	request.Header.Set("X-SS-STUB", strings.ToUpper(hex.EncodeToString(bodyHash[:])))
 	request.Header.Set("X-Gorgon", hongguoVideoGorgon(request.URL.RawQuery, bodyHash, stamp, nonce.gorgon))
-	var data [4]byte
-	binary.BigEndian.PutUint32(data[:], stamp)
-	request.Header.Set("X-Ladon", base64.StdEncoding.EncodeToString(data[:]))
-	binary.LittleEndian.PutUint32(data[:], stamp)
-	request.Header.Set("X-Argus", base64.StdEncoding.EncodeToString(data[:]))
 	request.Header.Set("X-Helios", hongguoVideoHelios(stamp, nonce.helios))
 	request.Header.Set("X-Medusa", medusa)
 	request.Header.Set("X-TT-DT", "")
+	signHongguoPlatform(request, body, now)
 	return nil
 }
 
