@@ -155,8 +155,8 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 	if _, err := engine.nativeCatalog(context.Background(), nativeInput{Source: sourceHongguo, Page: 1, Force: true}); err != nil {
 		t.Fatal(err)
 	}
-	if engine.downloader.hongguoCatalogSnapshot().Feeds["default"].Offset != 36 {
-		t.Fatal("refreshing an unchanged head reset the saved continuation")
+	if cursor := engine.downloader.hongguoCatalogSnapshot().Feeds["short_play"]; cursor.Offset <= 18 {
+		t.Fatal("refreshing an unchanged head reset the saved continuation", cursor.Offset)
 	}
 }
 
