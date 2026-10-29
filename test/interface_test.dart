@@ -33,7 +33,7 @@ void main() {
   testWidgets(
     'refresh rotates during a request and stops after success or failure',
     (tester) async {
-      viewport(tester, const Size(390, 844));
+      viewport(tester, const Size(1280, 800));
       final repository = InterfaceRepository();
       await tester.pumpWidget(
         DuanjuApp(repository: repository, store: await localStore()),
@@ -218,7 +218,7 @@ void main() {
         final local = find.byKey(const ValueKey('download-local-media'));
         expect(
           tester.getCenter(menu).dy,
-          closeTo(tester.getCenter(find.text('下载任务')).dy, .01),
+          closeTo(tester.getCenter(find.text('下载合集')).dy, .01),
         );
         expect(tester.getRect(menu).left, greaterThan(layout.$1.width / 2));
         expect(
