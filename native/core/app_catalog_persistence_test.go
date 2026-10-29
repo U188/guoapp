@@ -399,7 +399,7 @@ func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 		}
 		payload := nativeHongguoRequestForTest(t, request)
 		if payload.Offset == 18 && payload.Scene == "default" {
-			close(paused)
+			pausedOnce.Do(func() { close(paused) })
 			select {
 			case <-release:
 			case <-request.Context().Done():
