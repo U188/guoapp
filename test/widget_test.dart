@@ -3,6 +3,7 @@ import 'package:duanju_app/main.dart';
 import 'package:duanju_app/detail_screen.dart';
 import 'package:duanju_app/follow_state.dart';
 import 'package:duanju_app/models.dart';
+import 'package:duanju_app/remote_widgets.dart';
 import 'package:duanju_app/app_build.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,13 +79,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('继续播放 · 第 $episode 集'), findsOneWidget);
         for (final number in [1, 2]) {
-          final button = tester.widget<OutlinedButton>(
+          final button = tester.widget<RemoteEpisodeButton>(
             find.byKey(ValueKey('episode-$number')),
           );
-          expect(
-            button.style?.backgroundColor?.resolve({}),
-            number == episode ? isNotNull : isNull,
-          );
+          expect(button.current, number == episode);
         }
       }
       await local.clearHistory();
