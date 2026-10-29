@@ -32,7 +32,7 @@ func nativeHongguoRequestForTest(t *testing.T, request *http.Request) nativeHong
 	return payload
 }
 
-func hongguoWebCategoryFixture(request *http.Request) (*http.Response, bool) {
+func hongguoWebCategoryResponse(request *http.Request) (*http.Response, bool) {
 	if !strings.HasPrefix(request.URL.Path, "/category/") {
 		return nil, false
 	}
@@ -43,22 +43,11 @@ func hongguoWebCategoryFixture(request *http.Request) (*http.Response, bool) {
 			page = parsed
 		}
 	}
-	rows := []any{}
+	ids := []string{}
 	for index := 0; index < 24; index++ {
-		rows = append(rows, map[string]any{
-			"series_id":   fmt.Sprintf("%s-%d-%02d", route, page, index),
-			"series_name": fmt.Sprintf("合成分类 %s %d-%d", route, page, index),
-		})
+		ids = append(ids, fmt.Sprintf("%s-%d-%02d", route, page, index))
 	}
-	payload := map[string]any{
-		"isSuccess":     true,
-		"categoryRoute": map[string]any{"contentType": route},
-		"canonicalUrl":  "https://hongguoduanju.com/category/" + route,
-		"pagination":    map[string]any{"pageNum": page, "totalPages": 5},
-		"recommendList": rows,
-	}
-	body, _ := json.Marshal(map[string]any{"loaderData": map[string]any{"category_$": payload}})
-	return sourceFixtureResponse(request, http.StatusOK, "<script>window._ROUTER_DATA="+string(body)+"</script>"), true
+	return sourceFixtureResponse(request, http.StatusOK, hongguoWebCategoryFixture(route, page, 5, ids...)), true
 }
 
 func nativeHongguoResponse(request *http.Request, next int, more bool, session string, ids ...string) *http.Response {
@@ -89,7 +78,7 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 	var calls []nativeHongguoRequest
 	var device, install string
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
-		if response, ok := hongguoWebCategoryFixture(request); ok {
+		if response, ok := hongguoWebCategoryResponse(request); ok {
 			return response, nil
 		}
 		payload := nativeHongguoRequestForTest(t, request)
@@ -173,7 +162,7 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			var calls []nativeHongguoRequest
 			transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
-				if response, ok := hongguoWebCategoryFixture(request); ok {
+				if response, ok := hongguoWebCategoryResponse(request); ok {
 					return response, nil
 				}
 				payload := nativeHongguoRequestForTest(t, request)
@@ -235,7 +224,7 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 func TestNativeHongguoStalledCursorKeepsPartialItems(t *testing.T) {
 	var calls []int
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
-		if response, ok := hongguoWebCategoryFixture(request); ok {
+		if response, ok := hongguoWebCategoryResponse(request); ok {
 			return response, nil
 		}
 		payload := nativeHongguoRequestForTest(t, request)
@@ -302,7 +291,7 @@ func TestNativeCatalogPreservesLargeLibraryAndPage501(t *testing.T) {
 func TestNativeCatalogSaveFailureRetriesWithoutAdvancing(t *testing.T) {
 	var offsets []int
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
-		if response, ok := hongguoWebCategoryFixture(request); ok {
+		if response, ok := hongguoWebCategoryResponse(request); ok {
 			return response, nil
 		}
 		payload := nativeHongguoRequestForTest(t, request)
@@ -398,7 +387,7 @@ func TestNativeCatalogSizeLimitPreservesPreviousFile(t *testing.T) {
 func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 	paused, release := make(chan struct{}), make(chan struct{})
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
-		if response, ok := hongguoWebCategoryFixture(request); ok {
+		if response, ok := hongguoWebCategoryResponse(request); ok {
 			return response, nil
 		}
 		payload := nativeHongguoRequestForTest(t, request)
