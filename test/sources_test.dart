@@ -134,8 +134,8 @@ void main() {
             id: 'default',
             name: '管理员',
             admin: true,
-            salt: 'fixture-salt',
-            pinHash: 'fixture-pin',
+            salt: '0123456789abcdef0123456789abcdef',
+            pinHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
           ).toJson(),
           const LocalProfile(
             id: 'viewer',
