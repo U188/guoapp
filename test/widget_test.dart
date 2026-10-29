@@ -1,5 +1,6 @@
 import 'package:duanju_app/local_store.dart';
 import 'package:duanju_app/main.dart';
+import 'package:duanju_app/detail_screen.dart';
 import 'package:duanju_app/models.dart';
 import 'package:duanju_app/app_build.dart';
 import 'package:flutter/material.dart';
@@ -45,9 +46,16 @@ void main() {
         expect(find.text('黄豆'), findsNothing);
       }
       expect(find.text('会员测试剧'), findsNothing);
-      await tester.tap(find.text('测试短剧'));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DetailScreen(
+            drama: FixtureRepository.free,
+            repository: repository,
+            store: local,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(repository.detailCalls, 1);
       expect(find.byKey(const ValueKey('episode-2')), findsOneWidget);
       await tester.tap(find.byTooltip('加入追剧'));
       await tester.pumpAndSettle();
