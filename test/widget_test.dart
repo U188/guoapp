@@ -76,7 +76,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('继续第 $episode 集'), findsOneWidget);
+        expect(find.text('继续播放 · 第 $episode 集'), findsOneWidget);
         for (final number in [1, 2]) {
           final button = tester.widget<OutlinedButton>(
             find.byKey(ValueKey('episode-$number')),
