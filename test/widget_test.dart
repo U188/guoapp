@@ -1,6 +1,7 @@
 import 'package:duanju_app/local_store.dart';
 import 'package:duanju_app/main.dart';
 import 'package:duanju_app/detail_screen.dart';
+import 'package:duanju_app/follow_state.dart';
 import 'package:duanju_app/models.dart';
 import 'package:duanju_app/app_build.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +62,7 @@ void main() {
       expect(find.byKey(const ValueKey('episode-2')), findsOneWidget);
       await tester.tap(find.byTooltip('追剧与观看状态'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('想看').last);
+      await tester.tap(find.widgetWithText(CheckedPopupMenuItem<FollowStatus>, '想看'));
       await tester.pumpAndSettle();
       expect(local.isFavorite(FixtureRepository.free.id), isTrue);
       for (final episode in [1, 2]) {
