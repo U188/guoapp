@@ -6,7 +6,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,8 +19,6 @@ import (
 )
 
 const (
-	sourceXChina = "xchina"
-
 	xchinaSiteURL   = "https://xchina.tube"
 	xchinaApp       = "xchina.tube"
 	xchinaVersion   = "260901"

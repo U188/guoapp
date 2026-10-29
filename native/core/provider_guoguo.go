@@ -17,8 +17,6 @@ import (
 )
 
 const (
-	sourceGuoguo = "guoguo"
-
 	guoguoAPIHost       = "5xe5vxqg.e8rgzshf.cc"
 	guoguoAESKey        = "GcgzsKdDZTumABNz7uujrCfPIk9TQ355"
 	guoguoSID           = "240b270a41a94188b7d957f7fbb58f48"

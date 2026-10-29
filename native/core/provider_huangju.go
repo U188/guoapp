@@ -360,3 +360,12 @@ func (d *Downloader) resolveHuangjuMedia(ctx context.Context, task Task) (provid
 	}
 	return media, nil
 }
+
+func firstPresent(values map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if value, ok := values[key]; ok && value != nil && nativeText(value) != "" {
+			return value
+		}
+	}
+	return nil
+}
