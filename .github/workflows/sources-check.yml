@@ -1,0 +1,41 @@
+name: Sources check
+
+on:
+  push:
+    branches: ['sources-xchina']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - run: go vet ./...
+        working-directory: native
+      - run: go test ./...
+        working-directory: native
+      - run: go test -ldflags="-X duanjuapp/native/core.buildAllSources=true" ./...
+        working-directory: native
+
+  dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=show lib/sources_screen.dart
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
+      - run: dart analyze lib test integration_test test_driver
