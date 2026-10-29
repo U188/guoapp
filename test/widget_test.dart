@@ -56,6 +56,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.grid_view_rounded));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('episode-2')), findsOneWidget);
       await tester.tap(find.byTooltip('加入追剧'));
       await tester.pumpAndSettle();
