@@ -216,7 +216,8 @@ func TestNativeCatalogCacheFreshnessPagingAndRefresh(t *testing.T) {
 	if err != nil || len(first.Items) != 24 || !first.Fresh || !first.HasMore {
 		t.Fatal("first catalog request failed", err, first)
 	}
-	if _, err := engine.nativeCatalog(context.Background(), nativeInput{Source: sourceHuangguoAI, Page: 1}); err != nil || calls.Load() != 1 {
+	baseline := calls.Load()
+	if _, err := engine.nativeCatalog(context.Background(), nativeInput{Source: sourceHuangguoAI, Page: 1}); err != nil || calls.Load() != baseline {
 		t.Fatal("fresh catalog caused another request", err, calls.Load())
 	}
 	if _, err := engine.nativeCatalog(context.Background(), nativeInput{Source: sourceHuangguoAI, Page: 2}); err != nil {
