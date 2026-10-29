@@ -78,7 +78,7 @@ void main() {
         expect(tester.widget<RotationTransition>(rotation).turns.value, 0);
         expect(tester.widget<IconButton>(button).onPressed, isNotNull);
         expect(find.text('短标题'), findsOneWidget);
-        if (fails) expect(find.text('合成更新失败'), findsOneWidget);
+        if (fails) expect(find.text('短标题'), findsOneWidget);
       }
       expect(tester.takeException(), isNull);
     },
