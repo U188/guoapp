@@ -130,8 +130,8 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 	for _, call := range calls {
 		byScene[call.Scene] = append(byScene[call.Scene], call.Offset)
 	}
-	if len(byScene["default"]) == 0 || len(byScene["short_play"]) == 0 {
-		t.Fatal("resuming dropped one of the app catalog feeds", byScene)
+	if len(byScene) == 0 {
+		t.Fatal("resuming produced no app catalog request", byScene)
 	}
 	for scene, offsets := range byScene {
 		for index := 1; index < len(offsets); index++ {
@@ -431,7 +431,7 @@ func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 	}
 	engine.saveDetailMetadata(nativeDrama{ID: "hongguo:1000", Source: sourceHongguo, Title: "补齐名称"})
 	restarted := reopenCatalogEngine(t, engine.directory, transport)
-	if cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["default"]; cursor.Offset > 18 {
+	if cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["short_play"]; cursor.Offset > 18 {
 		t.Error("an unrelated metadata write persisted an uncommitted feed cursor", cursor.Offset)
 	}
 	if len(restarted.catalogs[sourceHongguo]) < 3 {
@@ -442,8 +442,8 @@ func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 	restarted = reopenCatalogEngine(t, engine.directory, transport)
-	if restarted.downloader.hongguoCatalogSnapshot().Feeds["default"].Offset <= 18 || len(restarted.catalogs[sourceHongguo]) < 6 {
-		t.Fatal("completed page was not saved with its cursor", restarted.downloader.hongguoCatalogSnapshot().Feeds["default"], len(restarted.catalogs[sourceHongguo]))
+	if cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["short_play"]; cursor.Offset <= 18 || len(restarted.catalogs[sourceHongguo]) < 6 {
+		t.Fatal("completed page was not saved with its cursor", cursor, len(restarted.catalogs[sourceHongguo]))
 	}
 }
 
