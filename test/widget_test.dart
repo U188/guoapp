@@ -59,7 +59,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.grid_view_rounded));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('episode-2')), findsOneWidget);
-      await tester.tap(find.byTooltip('加入追剧'));
+      await tester.tap(find.byTooltip('追剧与观看状态'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('加入追剧').last);
       await tester.pumpAndSettle();
       expect(local.isFavorite(FixtureRepository.free.id), isTrue);
       for (final episode in [1, 2]) {
