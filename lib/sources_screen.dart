@@ -170,9 +170,7 @@ class _SourcesScreenState extends State<SourcesScreen> {
       return;
     }
     if (!mounted) return;
-    final text = lines.isEmpty
-        ? '暂无运行日志'
-        : lines.reversed.join('\n');
+    final text = lines.isEmpty ? '暂无运行日志' : lines.reversed.join('\n');
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(

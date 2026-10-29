@@ -25,8 +25,9 @@ const (
 	sourceHuangdou      = "huangdou"
 	sourceHongguo       = "hongguo"
 	sourceHuangju       = "huangju"
-	sourceYeguo         = "yeguo"
 	sourceDSD           = "dsd"
+	sourceXChina        = "xchina"
+	sourceGuoguo        = "guoguo"
 	sourceCloudFront    = "cloudfront"
 
 	providerMaxBodyBytes = 20 * 1024 * 1024
@@ -88,7 +89,7 @@ func splitProviderDramaID(id string) (source, sourceID string, ok bool) {
 
 func isHuangguoProviderSource(source string) bool {
 	switch canonicalProviderSource(source) {
-	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceYeguo, sourceDSD, sourceCloudFront:
+	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceDSD, sourceXChina, sourceGuoguo, sourceCloudFront:
 		return true
 	default:
 		return false
@@ -107,10 +108,12 @@ func canonicalProviderSource(source string) string {
 		return sourceHongguo
 	case "huangju", "huangju.net", "api.huangju.net":
 		return sourceHuangju
-	case "yeguo", "ygdj7.com", "www.ygdj7.com", "analyze.buxefaex.cc", "delta.ygrwdsgt.cc", "yeguodj.com", "www.yeguodj.com":
-		return sourceYeguo
 	case "dsd", "dsd.com.se", "www.dsd.com.se":
 		return sourceDSD
+	case "xchina", "xchina.tube", "www.xchina.tube":
+		return sourceXChina
+	case "guoguo", "guoguo.app":
+		return sourceGuoguo
 	case "cloudfront":
 		return sourceCloudFront
 	default:
@@ -216,11 +219,14 @@ func (d *Downloader) GetHuangguoChapters(ctx context.Context, source, sourceID s
 	case sourceHuangju:
 		drama, chapters, err := d.fetchHuangjuDetail(ctx, sourceID)
 		return drama.DisplayTitle(), chapters, err
-	case sourceYeguo:
-		drama, chapters, err := d.fetchYeguoDetail(ctx, sourceID)
-		return drama.DisplayTitle(), chapters, err
 	case sourceDSD:
 		drama, chapters, err := d.fetchDSDDetail(ctx, sourceID)
+		return drama.DisplayTitle(), chapters, err
+	case sourceXChina:
+		drama, chapters, err := d.fetchXChinaDetail(ctx, sourceID)
+		return drama.DisplayTitle(), chapters, err
+	case sourceGuoguo:
+		drama, chapters, err := d.fetchGuoguoDetail(ctx, sourceID)
 		return drama.DisplayTitle(), chapters, err
 	case sourceCloudFront:
 		return d.fetchLegacyChapters(ctx, sourceID)

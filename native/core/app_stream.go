@@ -297,13 +297,23 @@ func (stream *nativeStreamServer) nativeServe(writer http.ResponseWriter, reques
 		finalURL = response.Request.URL
 	}
 	playlist := strings.Contains(asset.contentType, "mpegurl") || strings.Contains(contentType, "mpegurl") || strings.HasSuffix(strings.ToLower(finalURL.Path), ".m3u8")
+	var sniffed []byte
+	if !playlist && request.Method == http.MethodGet && request.Header.Get("Range") == "" && response.StatusCode == http.StatusOK {
+		head := make([]byte, 512)
+		read, _ := io.ReadFull(response.Body, head)
+		sniffed = append([]byte(nil), head[:read]...)
+		if strings.HasPrefix(strings.TrimSpace(strings.TrimPrefix(string(sniffed), "\ufeff")), "#EXTM3U") {
+			playlist = true
+		}
+	}
 	if playlist && request.Method == http.MethodHead {
 		writer.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
 		writer.WriteHeader(http.StatusOK)
 		return
 	}
 	if playlist && request.Method == http.MethodGet {
-		body, err := io.ReadAll(io.LimitReader(response.Body, 4<<20+1))
+		rest, err := io.ReadAll(io.LimitReader(response.Body, 4<<20+1))
+		body := append(append([]byte(nil), sniffed...), rest...)
 		if err != nil || len(body) > 4<<20 {
 			http.Error(writer, "播放列表过大或读取失败", http.StatusBadGateway)
 			return
@@ -329,6 +339,9 @@ func (stream *nativeStreamServer) nativeServe(writer http.ResponseWriter, reques
 	}
 	writer.WriteHeader(response.StatusCode)
 	if request.Method == http.MethodGet {
+		if len(sniffed) > 0 {
+			_, _ = writer.Write(sniffed)
+		}
 		_, _ = io.Copy(writer, response.Body)
 	}
 }

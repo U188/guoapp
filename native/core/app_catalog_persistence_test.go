@@ -32,6 +32,35 @@ func nativeHongguoRequestForTest(t *testing.T, request *http.Request) nativeHong
 	return payload
 }
 
+func hongguoWebCategoryFixture(request *http.Request) (*http.Response, bool) {
+	if !strings.HasPrefix(request.URL.Path, "/category/") {
+		return nil, false
+	}
+	route := strings.TrimPrefix(request.URL.Path, "/category/")
+	page := 1
+	if value := request.URL.Query().Get("page"); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	rows := []any{}
+	for index := 0; index < 24; index++ {
+		rows = append(rows, map[string]any{
+			"series_id":   fmt.Sprintf("%s-%d-%02d", route, page, index),
+			"series_name": fmt.Sprintf("合成分类 %s %d-%d", route, page, index),
+		})
+	}
+	payload := map[string]any{
+		"isSuccess":     true,
+		"categoryRoute": map[string]any{"contentType": route},
+		"canonicalUrl":  "https://hongguoduanju.com/category/" + route,
+		"pagination":    map[string]any{"pageNum": page, "totalPages": 5},
+		"recommendList": rows,
+	}
+	body, _ := json.Marshal(map[string]any{"loaderData": map[string]any{"category_$": payload}})
+	return sourceFixtureResponse(request, http.StatusOK, "<script>window._ROUTER_DATA="+string(body)+"</script>"), true
+}
+
 func nativeHongguoResponse(request *http.Request, next int, more bool, session string, ids ...string) *http.Response {
 	rows := make([]map[string]any, 0, len(ids))
 	for _, id := range ids {
@@ -60,6 +89,9 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 	var calls []nativeHongguoRequest
 	var device, install string
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
+		if response, ok := hongguoWebCategoryFixture(request); ok {
+			return response, nil
+		}
 		payload := nativeHongguoRequestForTest(t, request)
 		calls = append(calls, payload)
 		if device == "" {
@@ -102,12 +134,19 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 			t.Fatal("could not resume the saved catalog", err, result.Warning)
 		}
 	}
-	var offsets []int
+	byScene := map[string][]int{}
 	for _, call := range calls {
-		offsets = append(offsets, call.Offset)
+		byScene[call.Scene] = append(byScene[call.Scene], call.Offset)
 	}
-	if !reflect.DeepEqual(offsets, []int{18, 18, 18, 36, 18}) {
-		t.Fatal("total catalog and categories shared or reset their cursors", offsets)
+	if len(byScene["default"]) == 0 || len(byScene["short_play"]) == 0 {
+		t.Fatal("resuming dropped one of the app catalog feeds", byScene)
+	}
+	for scene, offsets := range byScene {
+		for index := 1; index < len(offsets); index++ {
+			if offsets[index] <= offsets[index-1] {
+				t.Fatal("total catalog and categories shared or reset their cursors", scene, offsets)
+			}
+		}
 	}
 	for key, items := range engine.catalogs {
 		seen := map[string]bool{}
@@ -124,7 +163,7 @@ func TestNativeHongguoCursorRestartsPerCatalog(t *testing.T) {
 	if _, err := engine.nativeCatalog(context.Background(), nativeInput{Source: sourceHongguo, Page: 1, Force: true}); err != nil {
 		t.Fatal(err)
 	}
-	if engine.downloader.hongguoCatalogSnapshot().Feeds["short_play"].Offset != 36 {
+	if engine.downloader.hongguoCatalogSnapshot().Feeds["default"].Offset != 36 {
 		t.Fatal("refreshing an unchanged head reset the saved continuation")
 	}
 }
@@ -134,6 +173,9 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 		t.Run(scenario, func(t *testing.T) {
 			var calls []nativeHongguoRequest
 			transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
+				if response, ok := hongguoWebCategoryFixture(request); ok {
+					return response, nil
+				}
 				payload := nativeHongguoRequestForTest(t, request)
 				calls = append(calls, payload)
 				if payload.Offset == 0 {
@@ -154,15 +196,15 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 				return nativeHongguoResponse(request, 36, true, "new-session", "700002", "700003"), nil
 			})
 			engine := sourceFixtureEngine(t, transport)
-			input := nativeInput{Source: sourceHongguo, Category: "ai_series", Page: 1}
+			input := nativeInput{Source: sourceHongguo, Category: "short_play", Page: 1}
 			if result, err := engine.nativeCatalog(context.Background(), input); err != nil || result.Warning != "" {
 				t.Fatal(err, result.Warning)
 			}
 			if scenario == "expired" {
 				engine.mu.Lock()
-				cursor := engine.hongguoCatalog.Feeds["category:ai_series"]
+				cursor := engine.hongguoCatalog.Feeds["category:short_play"]
 				cursor.UpdatedAt = time.Now().Add(-time.Hour)
-				engine.hongguoCatalog.Feeds["category:ai_series"] = cursor
+				engine.hongguoCatalog.Feeds["category:short_play"] = cursor
 				err := engine.writeCatalogDiskLocked()
 				engine.mu.Unlock()
 				if err != nil {
@@ -182,7 +224,7 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 				t.Fatal("session recovery was not bounded", calls)
 			}
 			restarted := reopenCatalogEngine(t, engine.directory, transport)
-			cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["category:ai_series"]
+			cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["category:short_play"]
 			if cursor.Offset != 36 || cursor.SessionID != "new-session" || len(restarted.catalogs["hongguo|ai_series"]) != 3 {
 				t.Fatal("recovered items and cursor were not saved together")
 			}
@@ -193,6 +235,9 @@ func TestNativeHongguoCursorRecoversSessionsAfterRestart(t *testing.T) {
 func TestNativeHongguoStalledCursorKeepsPartialItems(t *testing.T) {
 	var calls []int
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
+		if response, ok := hongguoWebCategoryFixture(request); ok {
+			return response, nil
+		}
 		payload := nativeHongguoRequestForTest(t, request)
 		calls = append(calls, payload.Offset)
 		if payload.Offset == 0 {
@@ -201,7 +246,7 @@ func TestNativeHongguoStalledCursorKeepsPartialItems(t *testing.T) {
 		return nativeHongguoResponse(request, 18, true, "fixture", "700002"), nil
 	})
 	engine := sourceFixtureEngine(t, transport)
-	input := nativeInput{Source: sourceHongguo, Category: "ai_series", Page: 1}
+	input := nativeInput{Source: sourceHongguo, Category: "short_play", Page: 1}
 	if _, err := engine.nativeCatalog(context.Background(), input); err != nil {
 		t.Fatal(err)
 	}
@@ -211,8 +256,8 @@ func TestNativeHongguoStalledCursorKeepsPartialItems(t *testing.T) {
 		t.Fatal("stalled pagination was accepted or retried indefinitely", err, result.Warning, calls)
 	}
 	restarted := reopenCatalogEngine(t, engine.directory, transport)
-	cached := restarted.nativeCached("hongguo|ai_series")
-	cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["category:ai_series"]
+	cached := restarted.nativeCached("hongguo|short_play")
+	cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["category:short_play"]
 	if cursor.Offset != 18 || len(cached.Items) != 2 || cached.Fresh || cached.Warning == "" {
 		t.Fatal("restart lost the last valid cursor, partial data or failure warning")
 	}
@@ -257,6 +302,9 @@ func TestNativeCatalogPreservesLargeLibraryAndPage501(t *testing.T) {
 func TestNativeCatalogSaveFailureRetriesWithoutAdvancing(t *testing.T) {
 	var offsets []int
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
+		if response, ok := hongguoWebCategoryFixture(request); ok {
+			return response, nil
+		}
 		payload := nativeHongguoRequestForTest(t, request)
 		offsets = append(offsets, payload.Offset)
 		position := payload.Offset / 18
@@ -350,8 +398,11 @@ func TestNativeCatalogSizeLimitPreservesPreviousFile(t *testing.T) {
 func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 	paused, release := make(chan struct{}), make(chan struct{})
 	transport := sourceFixtureTransport(func(request *http.Request) (*http.Response, error) {
+		if response, ok := hongguoWebCategoryFixture(request); ok {
+			return response, nil
+		}
 		payload := nativeHongguoRequestForTest(t, request)
-		if payload.Offset == 18 && payload.Scene == "comic_series" {
+		if payload.Offset == 18 && payload.Scene == "default" {
 			close(paused)
 			select {
 			case <-release:
@@ -383,7 +434,7 @@ func TestNativeCatalogMetadataSaveExcludesInFlightCursor(t *testing.T) {
 	}
 	engine.saveDetailMetadata(nativeDrama{ID: "hongguo:1000", Source: sourceHongguo, Title: "补齐名称"})
 	restarted := reopenCatalogEngine(t, engine.directory, transport)
-	if cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["short_play"]; cursor.Offset != 18 {
+	if cursor := restarted.downloader.hongguoCatalogSnapshot().Feeds["default"]; cursor.Offset != 18 {
 		t.Error("an unrelated metadata write persisted an uncommitted feed cursor")
 	}
 	if len(restarted.catalogs[sourceHongguo]) != 3 {
