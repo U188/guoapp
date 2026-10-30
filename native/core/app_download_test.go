@@ -212,6 +212,12 @@ func TestNativeDownloadRangeServersCannotMixFiles(t *testing.T) {
 			if err := os.WriteFile(target+".part", []byte("OLD!"), 0600); err != nil {
 				t.Fatal(err)
 			}
+			if metadata.Validator != "" {
+				state, _ := json.Marshal(nativeDownloadPartialState{Validator: metadata.Validator, Total: metadata.Total})
+				if err := os.WriteFile(target+".part.state", state, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			_, err := manager.downloadFile(context.Background(), metadata.URL, "", target, false, func(int64, int64) {})
 			if mode == "invalid" {
 				if err == nil {
