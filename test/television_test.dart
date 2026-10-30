@@ -121,9 +121,7 @@ void main() {
         if (SourceSite.values.length > 1) {
           await tester.tap(find.byKey(const ValueKey('source-switch')));
           await tester.pumpAndSettle();
-          await tester.tap(
-            find.text(SourceSite.values[1].groupName).last,
-          );
+          await tester.tap(find.text(SourceSite.values[1].groupName).last);
           await tester.pumpAndSettle();
         }
         expect(

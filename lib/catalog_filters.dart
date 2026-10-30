@@ -109,9 +109,7 @@ class _CatalogFiltersState extends State<CatalogFilters> {
       ),
       selected: selected,
       showCheckmark: false,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       side: BorderSide(
         color: selected
             ? Colors.transparent
