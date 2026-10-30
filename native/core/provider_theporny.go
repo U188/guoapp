@@ -63,11 +63,16 @@ var (
 	}
 )
 
+type thepornyLogin struct {
+	token  string
+	at     time.Time
+	failed time.Time
+}
+
 type thepornyClient struct {
 	mu      sync.Mutex
 	host    string
-	token   string
-	at      time.Time
+	logins  map[string]thepornyLogin
 	detail  map[string]map[string]any
 	browser map[string]browserHTTPClient
 }
@@ -75,8 +80,8 @@ type thepornyClient struct {
 func (d *Downloader) theporny() *thepornyClient {
 	d.thepornyOnce.Do(func() {
 		d.thepornyCore = &thepornyClient{
-			host: thepornyHosts[0], detail: map[string]map[string]any{},
-			browser: map[string]browserHTTPClient{},
+			host: thepornyHosts[0], logins: map[string]thepornyLogin{},
+			detail: map[string]map[string]any{}, browser: map[string]browserHTTPClient{},
 		}
 	})
 	return d.thepornyCore
@@ -244,19 +249,32 @@ func (c *thepornyClient) login(ctx context.Context, d *Downloader, host string) 
 		return errors.New("Theporny 登录未返回令牌")
 	}
 	c.mu.Lock()
-	c.token, c.at = token, time.Now()
+	if c.logins == nil {
+		c.logins = map[string]thepornyLogin{}
+	}
+	c.logins[host] = thepornyLogin{token: token, at: time.Now()}
 	c.mu.Unlock()
 	return nil
 }
 
+// ensureLogin 按域名判断登录态：Cookie 是每域名独立的，不能跨域名复用。
+// 登录失败后 60 秒内不再重试，避免每条线路都卡在一次失败登录上。
 func (c *thepornyClient) ensureLogin(ctx context.Context, d *Downloader, host string) {
 	c.mu.Lock()
-	fresh := c.token != "" && time.Since(c.at) < 6*time.Hour
+	state := c.logins[host]
 	c.mu.Unlock()
-	if fresh {
+	if state.token != "" && time.Since(state.at) < 6*time.Hour {
 		return
 	}
-	_ = c.login(ctx, d, host)
+	if !state.failed.IsZero() && time.Since(state.failed) < time.Minute {
+		return
+	}
+	if err := c.login(ctx, d, host); err != nil {
+		c.mu.Lock()
+		state.failed = time.Now()
+		c.logins[host] = state
+		c.mu.Unlock()
+	}
 }
 
 // call 依次尝试各线路域名，成功即记住该域名。
@@ -293,8 +311,9 @@ func thepornyThumb(row map[string]any) string {
 			}
 		case []any:
 			for _, entry := range value {
-				if address := strings.TrimSpace(fmt.Sprint(entry)); strings.HasPrefix(address, "http") {
-					return address
+				address, ok := entry.(string)
+				if ok && strings.HasPrefix(strings.TrimSpace(address), "http") {
+					return strings.TrimSpace(address)
 				}
 			}
 		}
@@ -389,7 +408,7 @@ func (d *Downloader) fetchThepornyCatalogPage(ctx context.Context, page int, cat
 			items = append(items, drama)
 		}
 	}
-	return items, len(items) > 0, nil
+	return items, len(items) >= 20, nil
 }
 
 func (d *Downloader) fetchThepornyCategories() []nativeCategory {
@@ -406,13 +425,9 @@ func (d *Downloader) fetchThepornyDetail(ctx context.Context, sourceID string) (
 		return Drama{}, nil, errors.New("Theporny 视频 ID 无效")
 	}
 	client := d.theporny()
-	decoded, err := client.call(ctx, d, "/sevenVideos/"+sourceID, map[string]any{"server": thepornyLines[0].Server})
+	row, err := client.videoRow(ctx, d, sourceID)
 	if err != nil {
 		return Drama{}, nil, err
-	}
-	row, ok := decoded.(map[string]any)
-	if !ok {
-		return Drama{}, nil, errors.New("Theporny 未返回该视频资料")
 	}
 	drama := thepornyDrama(row)
 	if drama.ID == "" {
@@ -421,12 +436,7 @@ func (d *Downloader) fetchThepornyDetail(ctx context.Context, sourceID string) (
 			SourceID: sourceID, Title: sourceID, Name: sourceID, ChannelName: "Theporny",
 		}
 	}
-	client.mu.Lock()
-	if len(client.detail) >= 200 {
-		client.detail = map[string]map[string]any{}
-	}
-	client.detail[sourceID] = row
-	client.mu.Unlock()
+	client.rememberDetail(sourceID, row)
 	chapters := []Chapter{{
 		ID:             providerChapterID(sourceTheporny, sourceID, "main"),
 		Source:         sourceTheporny,
@@ -476,8 +486,55 @@ func (d *Downloader) resolveThepornyMedia(ctx context.Context, task Task) (provi
 			return providerMedia{URL: address, Referer: thepornySiteURL + "/"}, nil
 		}
 	}
+	if cached := client.cachedDetail(videoID); cached != nil {
+		if address := thepornyPlaylist(cached); address != "" {
+			return providerMedia{URL: address, Referer: thepornySiteURL + "/"}, nil
+		}
+	}
 	if lastErr == nil {
 		lastErr = errors.New("Theporny 该视频未返回可播放地址")
 	}
 	return providerMedia{}, lastErr
+}
+
+// videoRow 依次尝试各线路拉详情，成功即缓存；全部失败时退回缓存。
+func (c *thepornyClient) videoRow(ctx context.Context, d *Downloader, videoID string) (map[string]any, error) {
+	var lastErr error
+	for _, line := range thepornyLines {
+		decoded, err := c.call(ctx, d, "/sevenVideos/"+videoID, map[string]any{"server": line.Server})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		row, ok := decoded.(map[string]any)
+		if !ok {
+			continue
+		}
+		if mapString(row, "title") != "" || len(anyList(row["m3u8s"])) > 0 {
+			c.rememberDetail(videoID, row)
+			return row, nil
+		}
+	}
+	if cached := c.cachedDetail(videoID); cached != nil {
+		return cached, nil
+	}
+	if lastErr == nil {
+		lastErr = errors.New("Theporny 未返回该视频资料")
+	}
+	return nil, lastErr
+}
+
+func (c *thepornyClient) rememberDetail(videoID string, row map[string]any) {
+	c.mu.Lock()
+	if len(c.detail) >= 200 {
+		c.detail = map[string]map[string]any{}
+	}
+	c.detail[videoID] = row
+	c.mu.Unlock()
+}
+
+func (c *thepornyClient) cachedDetail(videoID string) map[string]any {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.detail[videoID]
 }

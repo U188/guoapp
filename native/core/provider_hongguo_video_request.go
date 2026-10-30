@@ -32,16 +32,10 @@ type hongguoVideoIdentity struct {
 	Aid, AppName, VersionCode, VersionName, Channel, Resolution string
 }
 
-var (
-	hongguoVideoIdentityLegacy = hongguoVideoIdentity{
-		Aid: "8662", AppName: "novelread", VersionCode: "71332",
-		VersionName: "7.1.3.32", Channel: "update_64", Resolution: "1280*2772",
-	}
-	hongguoVideoIdentityCurrent = hongguoVideoIdentity{
-		Aid: "1967", AppName: "novelapp", VersionCode: "72432",
-		VersionName: "7.2.4.32", Channel: "xiaomi_1967_64", Resolution: "1280*2620",
-	}
-)
+var hongguoVideoIdentityCurrent = hongguoVideoIdentity{
+	Aid: "1967", AppName: "novelapp", VersionCode: "72432",
+	VersionName: "7.2.4.32", Channel: "xiaomi_1967_64", Resolution: "1280*2620",
+}
 
 func hongguoVideoQuery(deviceID, installID string, now time.Time, identity hongguoVideoIdentity) string {
 	fields := []hongguoQueryField{
@@ -132,7 +126,7 @@ func (d *Downloader) hongguoVideoModelRequest(ctx context.Context, videoID strin
 		}
 		content, readErr := io.ReadAll(io.LimitReader(response.Body, providerMaxBodyBytes+1))
 		_ = response.Body.Close()
-		message := fmt.Sprintf("route=%s video=%s version=%s signatures=Gorgon,Helios,Medusa request_bytes=%d response_bytes=%d attempt=%d", hongguoMultiVideoPath, videoID, hongguoVideoAppVersion, len(body), len(content), attempt+1)
+		message := fmt.Sprintf("route=%s video=%s version=%s signatures=Argus,Ladon,Stub request_bytes=%d response_bytes=%d attempt=%d", hongguoMultiVideoPath, videoID, hongguoVideoIdentityCurrent.VersionName, len(body), len(content), attempt+1)
 		if readErr != nil {
 			lastErr = readErr
 			d.recordHongguoAppResponse("error", "hongguo_multi_read", request, response, content, message)

@@ -141,13 +141,13 @@ func (c *guoguoClient) raw(ctx context.Context, d *Downloader, host, path string
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("果果接口 HTTP %d", response.StatusCode)
 	}
-	return guoguoDecodeBody(content, response.Header.Get("Content-Encoding"))
+	return guoguoDecodeBody(content)
 }
 
 // guoguoDecodeBody 解开接口可能返回的 gzip 压缩体。
 // 请求里显式带了 accept-encoding: gzip，Go 的 transport 只在自己添加该头时才自动解压，
 // 所以这里必须自行解压，否则登录响应会被当成无效 JSON，界面表现为「登录失败」。
-func guoguoDecodeBody(content []byte, encoding string) ([]byte, error) {
+func guoguoDecodeBody(content []byte) ([]byte, error) {
 	if len(content) < 2 || content[0] != 0x1f || content[1] != 0x8b {
 		return content, nil
 	}

@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+// 历史签名向量按旧 App 身份（aid=8662 / novelread / 7.1.3.32）录制，仅测试使用。
+var hongguoVideoIdentityLegacy = hongguoVideoIdentity{
+	Aid: "8662", AppName: "novelread", VersionCode: "71332",
+	VersionName: "7.1.3.32", Channel: "update_64", Resolution: "1280*2772",
+}
+
 func TestHongguoVideoSignatureReferenceParity(t *testing.T) {
 	data, err := os.ReadFile("testdata/hongguo_video_sign_vectors.json")
 	if err != nil {

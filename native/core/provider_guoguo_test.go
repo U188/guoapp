@@ -21,7 +21,7 @@ func gzipBytes(t *testing.T, input []byte) []byte {
 
 func TestGuoguoDecodeBodyUnwrapsGzip(t *testing.T) {
 	payload := []byte(`{"code":0,"msg":"success","data":{"token":"abc"}}`)
-	plain, err := guoguoDecodeBody(gzipBytes(t, payload), "gzip")
+	plain, err := guoguoDecodeBody(gzipBytes(t, payload))
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestGuoguoDecodeBodyUnwrapsGzip(t *testing.T) {
 
 func TestGuoguoDecodeBodyKeepsPlainJSON(t *testing.T) {
 	payload := []byte(`"ZW5jcnlwdGVk"`)
-	plain, err := guoguoDecodeBody(payload, "")
+	plain, err := guoguoDecodeBody(payload)
 	if err != nil {
 		t.Fatalf("明文解析失败: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestGuoguoDecodeBodyKeepsPlainJSON(t *testing.T) {
 func TestGuoguoParseReadsDecryptedLogin(t *testing.T) {
 	// 登录接口返回的是 base64 密文，这里只验证 gzip 之后再解析不会丢掉字段。
 	body := gzipBytes(t, []byte(`{"code":0,"msg":"success"}`))
-	plain, err := guoguoDecodeBody(body, "gzip")
+	plain, err := guoguoDecodeBody(body)
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}
