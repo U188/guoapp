@@ -498,6 +498,7 @@ class _PlayerControlsState extends State<PlayerControls> {
     required double position,
     required double buffered,
   }) {
+    final primary = Theme.of(context).colorScheme.primary;
     final timeStyle = TextStyle(
       fontSize: 12,
       color: Colors.white.withValues(alpha: .82),
@@ -521,18 +522,17 @@ class _PlayerControlsState extends State<PlayerControls> {
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 3.5,
-                  activeTrackColor: Theme.of(context).colorScheme.primary,
+                  activeTrackColor: primary,
                   inactiveTrackColor: Colors.white.withValues(alpha: .22),
-                  secondaryActiveTrackColor: Colors.white.withValues(alpha: .48),
-                  thumbColor: Theme.of(context).colorScheme.primary,
+                  secondaryActiveTrackColor: Colors.white.withValues(
+                    alpha: .48,
+                  ),
+                  thumbColor: primary,
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 6,
                     elevation: 3,
                   ),
-                  overlayColor: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: .24),
+                  overlayColor: primary.withValues(alpha: .24),
                   overlayShape: const RoundSliderOverlayShape(
                     overlayRadius: 14,
                   ),

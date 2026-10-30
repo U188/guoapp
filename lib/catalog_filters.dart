@@ -75,31 +75,7 @@ class _CatalogFiltersState extends State<CatalogFilters> {
                               selected: entry.id == widget.category,
                               onPressed: () => widget.onCategory(entry.id),
                             )
-                          : ChoiceChip(
-                              key: ValueKey('category-${entry.id}'),
-                              label: Text(
-                                entry.name,
-                                style: TextStyle(
-                                  fontWeight: entry.id == widget.category
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                ),
-                              ),
-                              selected: entry.id == widget.category,
-                              showCheckmark: false,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              side: BorderSide(
-                                color: entry.id == widget.category
-                                    ? Colors.transparent
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .outlineVariant
-                                        .withValues(alpha: .5),
-                              ),
-                              onSelected: (_) => widget.onCategory(entry.id),
-                            ),
+                          : _chip(entry),
                     ),
                 ],
               ),
@@ -117,6 +93,31 @@ class _CatalogFiltersState extends State<CatalogFilters> {
           if (widget.trailing != null) widget.trailing!,
         ],
       ),
+    );
+  }
+
+  Widget _chip(CatalogCategory entry) {
+    final selected = entry.id == widget.category;
+    final colors = Theme.of(context).colorScheme;
+    return ChoiceChip(
+      key: ValueKey('category-${entry.id}'),
+      label: Text(
+        entry.name,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      selected: selected,
+      showCheckmark: false,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      side: BorderSide(
+        color: selected
+            ? Colors.transparent
+            : colors.outlineVariant.withValues(alpha: .5),
+      ),
+      onSelected: (_) => widget.onCategory(entry.id),
     );
   }
 }

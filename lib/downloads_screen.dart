@@ -36,7 +36,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Timer? _timer;
   final _search = TextEditingController();
   final _selected = <String>{};
-  final _expanded = <String>{};
+  final _collapsed = <String>{};
   late final DownloadCollectionUpdater _updater;
   late final int _epoch;
   List<DownloadJob> _jobs = [];
@@ -430,7 +430,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final count = collection.jobs
         .where((job) => _selected.contains(job.id))
         .length;
-    final expanded = _expanded.contains(collection.drama.id);
+    final expanded = !_collapsed.contains(collection.drama.id);
     return Card(
       child: ListTile(
         leading: _selecting
@@ -455,8 +455,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           '${collection.active > 0 ? ' · ${collection.active} 项进行中' : ''}${collection.failed > 0 ? ' · ${collection.failed} 项失败' : ''}',
         ),
         onTap: () => setState(() {
-          if (!_expanded.remove(collection.drama.id)) {
-            _expanded.add(collection.drama.id);
+          if (!_collapsed.remove(collection.drama.id)) {
+            _collapsed.add(collection.drama.id);
           }
         }),
         trailing: PopupMenuButton<String>(
@@ -685,7 +685,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       for (final collection in collections) ...[
         if (!AppLayout.isTelevision(context)) collection,
         if (AppLayout.isTelevision(context) ||
-            _expanded.contains(collection.drama.id))
+            !_collapsed.contains(collection.drama.id))
           ...collection.jobs,
       ],
     ];
