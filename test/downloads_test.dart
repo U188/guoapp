@@ -298,14 +298,22 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
-        home: DetailScreen(drama: drama, repository: repository, store: store),
+        home: DetailScreen(
+          drama: drama,
+          repository: repository,
+          store: store,
+          playerBuilder: (detail, index, position) {
+            expect(index, 0);
+            return const Scaffold(body: Text('合成播放器'));
+          },
+        ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('episode-1')));
-    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('start-play')));
+    await tester.pumpAndSettle();
     expect(find.text('这是一集 VIP 内容'), findsNothing);
-    expect(find.text('正在准备播放'), findsOneWidget);
+    expect(find.text('合成播放器'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -325,15 +333,18 @@ void main() {
       ),
     );
     await tick(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('pause-1')));
     await tester.tap(find.byKey(const ValueKey('pause-1')));
     await tick(tester);
     expect(repository.commands, ['pause:1']);
+    await tester.ensureVisible(find.byKey(const ValueKey('resume-1')));
     await tester.tap(find.byKey(const ValueKey('resume-1')));
     await tick(tester);
     expect(repository.commands.last, 'resume:1');
     await tester.tap(find.text('已下载').first);
     await tick(tester);
     expect(find.byKey(const ValueKey('download-task-1')), findsNothing);
+    await tester.ensureVisible(find.byKey(const ValueKey('remove-2')));
     await tester.tap(find.byKey(const ValueKey('remove-2')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('保留'));
@@ -384,6 +395,7 @@ void main() {
         ),
       );
       await tick(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('local-play-3')));
       await tester.tap(find.byKey(const ValueKey('local-play-3')));
       await tester.pumpAndSettle();
       expect(find.text('offline player'), findsOneWidget);
@@ -500,12 +512,11 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
         await tester.pumpAndSettle();
       }
-      await tester.sendKeyEvent(LogicalKeyboardKey.select);
-      await tester.pumpAndSettle();
       expect(find.text('测试短剧 · 第 13 集').last, findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.select);
       await tick(tester);
       expect(repository.commands.last, 'resume:13');
+      expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       expect(tester.takeException(), isNull);
     },

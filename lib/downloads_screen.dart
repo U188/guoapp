@@ -11,6 +11,7 @@ import 'local_store.dart';
 import 'local_media_screen.dart';
 import 'models.dart';
 import 'player_screen.dart';
+import 'remote_widgets.dart';
 import 'settings_screen.dart';
 import 'widgets.dart';
 
@@ -35,7 +36,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Timer? _timer;
   final _search = TextEditingController();
   final _selected = <String>{};
-  final _expanded = <String>{};
+  final _collapsed = <String>{};
   late final DownloadCollectionUpdater _updater;
   late final int _epoch;
   List<DownloadJob> _jobs = [];
@@ -145,7 +146,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('确认删除'),
+              child: const Text('删除'),
             ),
           ],
         ),
@@ -406,16 +407,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       key: const ValueKey('download-queue-actions'),
       tooltip: '队列操作',
       enabled: !_busy,
-      onSelected: (value) {
+      onSelected: (value) async {
         if (value == 'refresh') {
           _refresh();
+        } else if (value == 'pauseAll' || value == 'resumeAll') {
+          await widget.repository.controlDownloads(value);
+          await _refresh();
         } else {
           _batch(value, _jobs);
         }
       },
       itemBuilder: (_) => const [
-        PopupMenuItem(value: 'pause', child: Text('全部暂停')),
-        PopupMenuItem(value: 'resume', child: Text('全部继续')),
+        PopupMenuItem(value: 'pauseAll', child: Text('全部暂停')),
+        PopupMenuItem(value: 'resumeAll', child: Text('全部继续')),
         PopupMenuItem(value: 'archive', child: Text('清理已完成任务，保留视频')),
         PopupMenuItem(value: 'refresh', child: Text('刷新记录')),
       ],
@@ -426,7 +430,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final count = collection.jobs
         .where((job) => _selected.contains(job.id))
         .length;
-    final expanded = _expanded.contains(collection.drama.id);
+    final expanded = !_collapsed.contains(collection.drama.id);
     return Card(
       child: ListTile(
         leading: _selecting
@@ -451,8 +455,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           '${collection.active > 0 ? ' · ${collection.active} 项进行中' : ''}${collection.failed > 0 ? ' · ${collection.failed} 项失败' : ''}',
         ),
         onTap: () => setState(() {
-          if (!_expanded.remove(collection.drama.id)) {
-            _expanded.add(collection.drama.id);
+          if (!_collapsed.remove(collection.drama.id)) {
+            _collapsed.add(collection.drama.id);
           }
         }),
         trailing: PopupMenuButton<String>(
@@ -486,10 +490,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  Widget _episode(DownloadJob job) => Padding(
-    padding: const EdgeInsets.only(left: 12),
-    child: Card(
-      key: ValueKey('download-task-${job.id}'),
+  Widget _episode(DownloadJob job) {
+    final television = AppLayout.isTelevision(context);
+    final cardContent = Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -507,7 +510,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         : Icons.downloading_rounded,
                   ),
             title: Text(
-              '第 ${job.episode.number} 集${job.episode.vip ? ' · VIP' : ''}',
+              television
+                  ? '${job.drama.title} · 第 ${job.episode.number} 集${job.episode.vip ? ' · VIP' : ''}'
+                  : '第 ${job.episode.number} 集${job.episode.vip ? ' · VIP' : ''}',
             ),
             subtitle: Text(
               '${job.archived ? '已保留视频' : job.stateLabel} · ${storageSize(job.bytes)}'
@@ -519,37 +524,83 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 ? () => _select([job])
                 : job.completed
                 ? () => _play(job)
+                : job.resumable
+                ? () => _batch('resume', [job])
+                : job.active
+                ? () => _batch('pause', [job])
                 : null,
             trailing: _selecting
                 ? null
-                : PopupMenuButton<String>(
-                    enabled: !_busy,
-                    tooltip: '分集操作',
-                    onSelected: (value) {
-                      if (value == 'play') {
-                        _play(job);
-                      } else {
-                        _batch(value, [job]);
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      if (job.completed)
-                        const PopupMenuItem(value: 'play', child: Text('本地播放')),
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       if (job.active)
-                        const PopupMenuItem(value: 'pause', child: Text('暂停')),
+                        IconButton(
+                          key: ValueKey('pause-${job.episode.number}'),
+                          tooltip: '暂停',
+                          icon: const Icon(Icons.pause),
+                          onPressed: _busy
+                              ? null
+                              : () => _batch('pause', [job]),
+                        ),
                       if (job.resumable)
-                        const PopupMenuItem(
-                          value: 'resume',
-                          child: Text('继续 / 重试'),
+                        IconButton(
+                          key: ValueKey('resume-${job.episode.number}'),
+                          tooltip: '继续 / 重试',
+                          icon: const Icon(Icons.play_arrow),
+                          onPressed: _busy
+                              ? null
+                              : () => _batch('resume', [job]),
                         ),
                       if (job.completed)
-                        PopupMenuItem(
-                          value: job.archived ? 'restore' : 'archive',
-                          child: Text(job.archived ? '恢复任务' : '清理任务，保留视频'),
+                        IconButton(
+                          key: ValueKey('local-play-${job.episode.number}'),
+                          tooltip: '本地播放',
+                          icon: const Icon(Icons.play_circle_outline),
+                          onPressed: _busy ? null : () => _play(job),
                         ),
-                      PopupMenuItem(
-                        value: 'remove',
-                        child: Text(job.completed ? '删除视频' : '取消下载'),
+                      IconButton(
+                        key: ValueKey('remove-${job.episode.number}'),
+                        tooltip: '删除任务',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: _busy ? null : () => _batch('remove', [job]),
+                      ),
+                      PopupMenuButton<String>(
+                        enabled: !_busy,
+                        tooltip: '分集操作',
+                        onSelected: (value) {
+                          if (value == 'play') {
+                            _play(job);
+                          } else {
+                            _batch(value, [job]);
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          if (job.completed)
+                            const PopupMenuItem(
+                              value: 'play',
+                              child: Text('本地播放'),
+                            ),
+                          if (job.active)
+                            const PopupMenuItem(
+                              value: 'pause',
+                              child: Text('暂停'),
+                            ),
+                          if (job.resumable)
+                            const PopupMenuItem(
+                              value: 'resume',
+                              child: Text('继续 / 重试'),
+                            ),
+                          if (job.completed)
+                            PopupMenuItem(
+                              value: job.archived ? 'restore' : 'archive',
+                              child: Text(job.archived ? '恢复任务' : '清理任务，保留视频'),
+                            ),
+                          PopupMenuItem(
+                            value: 'remove',
+                            child: Text(job.completed ? '删除视频' : '取消下载'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -561,8 +612,31 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             ),
         ],
       ),
-    ),
-  );
+    );
+
+    return Padding(
+      key: ValueKey('download-task-${job.id}'),
+      padding: EdgeInsets.only(left: television ? 0 : 12),
+      child: television
+          ? RemoteTarget(
+              onPressed: _busy
+                  ? null
+                  : _selecting
+                  ? () => _select([job])
+                  : job.completed
+                  ? () => _play(job)
+                  : job.resumable
+                  ? () => _batch('resume', [job])
+                  : job.active
+                  ? () => _batch('pause', [job])
+                  : null,
+              padding: EdgeInsets.zero,
+              radius: 12,
+              child: cardContent,
+            )
+          : cardContent,
+    );
+  }
 
   Widget _batchBar() => Material(
     color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -619,8 +693,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final collections = _collections;
     final rows = <Object>[
       for (final collection in collections) ...[
-        collection,
-        if (_expanded.contains(collection.drama.id)) ...collection.jobs,
+        if (!AppLayout.isTelevision(context)) collection,
+        if (AppLayout.isTelevision(context) ||
+            !_collapsed.contains(collection.drama.id))
+          ...collection.jobs,
       ],
     ];
     final title = _selecting ? '已选 ${_selected.length} 项' : '下载合集';
@@ -647,20 +723,86 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: TextField(
-            controller: _search,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '搜索剧名、站源或分类',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _search.text.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: '清空搜索',
-                      onPressed: () => setState(_search.clear),
-                      icon: const Icon(Icons.close_rounded),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _search,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: '搜索剧名、站源或分类',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: '清空搜索',
+                          onPressed: () => setState(_search.clear),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                key: const ValueKey('download-filters'),
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    FilterChip(
+                      key: const ValueKey('download-filter-all'),
+                      label: const Text('全部'),
+                      selected: _filter == 'all',
+                      onSelected: (_) => setState(() => _filter = 'all'),
                     ),
-            ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      key: const ValueKey('download-filter-downloading'),
+                      label: const Text('下载中'),
+                      selected: _filter == 'downloading',
+                      onSelected: (_) =>
+                          setState(() => _filter = 'downloading'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      key: const ValueKey('download-filter-paused'),
+                      label: const Text('已暂停'),
+                      selected: _filter == 'paused',
+                      onSelected: (_) => setState(() => _filter = 'paused'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      key: const ValueKey('download-filter-completed'),
+                      label: const Text('已下载'),
+                      selected: _filter == 'completed',
+                      onSelected: (_) => setState(() => _filter = 'completed'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      key: const ValueKey('download-filter-error'),
+                      label: const Text('失败'),
+                      selected: _filter == 'error',
+                      onSelected: (_) => setState(() => _filter = 'error'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: Text('年代: ${_release.isEmpty ? '全部' : _release}'),
+                      selected: _release.isNotEmpty,
+                      onSelected: (_) => _filters(),
+                    ),
+                    if (_filter != 'all' || _release.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.clear, size: 16),
+                        label: const Text('重置'),
+                        onPressed: () => setState(() {
+                          _filter = 'all';
+                          _release = '';
+                        }),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         Padding(

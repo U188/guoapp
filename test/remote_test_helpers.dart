@@ -20,6 +20,7 @@ Widget televisionHost({required Widget child}) => MaterialApp(
     child: Shortcuts(
       shortcuts: const {
         SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
         SingleActivator(LogicalKeyboardKey.goBack): DismissIntent(),
       },
       child: FocusTraversalGroup(child: child!),

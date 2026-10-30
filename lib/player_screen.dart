@@ -1811,14 +1811,23 @@ class _PlayerScreenState extends State<PlayerScreen>
             _mobileTabs(colors),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _mobileTab == 0
-                      ? _episodePanel(compact: true)
-                      : _mobileTab == 1
-                      ? _mobileSynopsis()
-                      : _mobileDownload(),
+                  borderRadius: BorderRadius.circular(16),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colors.outlineVariant.withValues(alpha: .35),
+                      ),
+                    ),
+                    child: _mobileTab == 0
+                        ? _episodePanel(compact: true)
+                        : _mobileTab == 1
+                        ? _mobileSynopsis()
+                        : _mobileDownload(),
+                  ),
                 ),
               ),
             ),
@@ -1829,9 +1838,14 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Widget _mobileTabs(ColorScheme colors) => Padding(
-    padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-    child: SizedBox(
-      height: 42,
+    padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+    child: Container(
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         children: [
           _mobileTabButton(0, '选集'),
@@ -1846,23 +1860,29 @@ class _PlayerScreenState extends State<PlayerScreen>
     final selected = _mobileTab == value;
     final colors = Theme.of(context).colorScheme;
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
         onTap: () => setState(() => _mobileTab = value),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: selected ? colors.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
+            color: selected ? colors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(17),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: colors.primary.withValues(alpha: .35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? colors.onSurface : colors.onSurfaceVariant,
+              color: selected ? colors.onPrimary : colors.onSurfaceVariant,
               fontSize: 13,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),

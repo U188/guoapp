@@ -249,6 +249,7 @@ class DuanjuApp extends StatelessWidget {
                       LogicalKeyboardKey.gameButtonA,
                       includeRepeats: false,
                     ): ActivateIntent(),
+                    SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
                     SingleActivator(LogicalKeyboardKey.goBack): DismissIntent(),
                   },
                   child: FocusTraversalGroup(child: child!),

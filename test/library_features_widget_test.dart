@@ -335,7 +335,7 @@ void main() {
   );
 
   testWidgets(
-    'catalog card waits on home then opens player without launch page',
+    'catalog card opens the detail page and waits for episodes before playing',
     (tester) async {
       viewport(tester, const Size(390, 844));
       final store = await create();
@@ -351,8 +351,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.text('正在进入播放'), findsNothing);
-      expect(find.text('立即播放'), findsNothing);
-      expect(find.text('合成一号'), findsOneWidget);
+      expect(find.byType(DetailScreen), findsOneWidget);
+      final start = find.byKey(const ValueKey('start-play'));
+      expect(start, findsOneWidget);
+      expect(tester.widget<FilledButton>(start).onPressed, isNull);
       expect(repository.detailRequests, [first.id]);
       repository.pendingDetail!.complete(
         LibraryFeatureRepository.makeDetail(first, 2),

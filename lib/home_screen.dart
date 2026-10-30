@@ -611,25 +611,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openDrama(Drama drama, {bool resume = false, bool download = false}) {
     _pauseCatalog();
-    if (download) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => DetailScreen(
-            drama: drama,
-            repository: widget.repository,
-            store: widget.store,
-            downloadOnOpen: true,
-          ),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DetailScreen(
+          drama: drama,
+          repository: widget.repository,
+          store: widget.store,
+          downloadOnOpen: download,
         ),
-      );
-      return;
-    }
-    unawaited(
-      openPlaybackDirectly(
-        context,
-        drama: drama,
-        repository: widget.repository,
-        store: widget.store,
       ),
     );
   }

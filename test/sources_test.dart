@@ -130,7 +130,13 @@ void main() {
     (tester) async {
       SharedPreferences.setMockInitialValues({
         'profiles': jsonEncode([
-          const LocalProfile(id: 'default', name: '管理员', admin: true).toJson(),
+          const LocalProfile(
+            id: 'default',
+            name: '管理员',
+            admin: true,
+            salt: '0123456789abcdef0123456789abcdef',
+            pinHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+          ).toJson(),
           const LocalProfile(
             id: 'viewer',
             name: '只看红果',
