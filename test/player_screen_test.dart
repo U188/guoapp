@@ -4,6 +4,7 @@ import 'package:duanju_app/player_screen.dart';
 import 'package:duanju_app/app_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -246,6 +247,36 @@ void main() {
       expect(pip.left - quality.right, lessThan(8));
       expect(pip.right, greaterThan(330));
       await unmount(tester, player);
+    } finally {
+      messenger.setMockMethodCallHandler(AppDevice.channel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+  testWidgets('leaving the player disables native auto picture-in-picture', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final calls = <MethodCall>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(AppDevice.channel, (call) async {
+      calls.add(call);
+      if (call.method == 'pictureInPictureStatus') {
+        return {'supported': true, 'active': false};
+      }
+      return null;
+    });
+    try {
+      final repository = RouteRepository();
+      final player = ScriptedPlayer();
+      await mount(tester, repository, player, size: const Size(390, 844));
+      await unmount(tester, player);
+      await tester.pump();
+      final disable = calls.where(
+        (call) => call.method == 'setPictureInPictureAutoEnter',
+      );
+      expect(disable, isNotEmpty);
+      expect((disable.last.arguments as Map)['enabled'], isFalse);
     } finally {
       messenger.setMockMethodCallHandler(AppDevice.channel, null);
       debugDefaultTargetPlatformOverride = null;

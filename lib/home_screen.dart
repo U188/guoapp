@@ -616,6 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
           drama: drama,
           repository: widget.repository,
           store: widget.store,
+          resumeOnOpen: resume,
           downloadOnOpen: download,
         ),
       ),

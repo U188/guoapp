@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:duanju_app/local_store.dart';
 import 'package:duanju_app/main.dart';
 import 'package:duanju_app/detail_screen.dart';
@@ -164,6 +166,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('continue watching asks the detail screen to resume', (
+    tester,
+  ) async {
+    final repository = PendingDetailRepository();
+    SharedPreferences.setMockInitialValues({});
+    final local = LocalStore(await SharedPreferences.getInstance());
+    await local.saveWatch(
+      WatchEntry(
+        drama: FixtureRepository.free,
+        episode: 2,
+        position: 18.5,
+        duration: 90,
+        updatedAt: DateTime.now(),
+      ),
+    );
+    await tester.pumpWidget(DuanjuApp(repository: repository, store: local));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('continue-watching')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final detail = tester.widget<DetailScreen>(find.byType(DetailScreen));
+    expect(detail.resumeOnOpen, isTrue);
+    expect(detail.downloadOnOpen, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
+
   test('watch progress and favorites survive a new store', () async {
     final local = await store();
     await local.saveWatch(
@@ -181,4 +212,10 @@ void main() {
     expect(restored.watched(FixtureRepository.free.id)?.episode, 2);
     expect(restored.isFavorite(FixtureRepository.free.id), isTrue);
   });
+}
+
+class PendingDetailRepository extends FixtureRepository {
+  final pending = Completer<DramaDetail>();
+  @override
+  Future<DramaDetail> detail(Drama drama) => pending.future;
 }

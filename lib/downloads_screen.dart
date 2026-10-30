@@ -779,8 +779,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     FilterChip(
                       key: const ValueKey('download-filter-error'),
                       label: const Text('失败'),
-                      selected: _filter == 'error',
-                      onSelected: (_) => setState(() => _filter = 'error'),
+                      selected: _filter == 'failed',
+                      onSelected: (_) => setState(() => _filter = 'failed'),
                     ),
                     const SizedBox(width: 8),
                     FilterChip(

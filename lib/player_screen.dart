@@ -375,6 +375,19 @@ class _PlayerScreenState extends State<PlayerScreen>
     unawaited(_refreshPictureInPictureStatus());
   }
 
+  Future<void> _disableAutoPictureInPicture() async {
+    try {
+      await AppDevice.channel.invokeMethod<void>(
+        'setPictureInPictureAutoEnter',
+        {'enabled': false},
+      );
+    } on PlatformException {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+  }
+
   Future<void> _refreshPictureInPictureStatus() async {
     if (defaultTargetPlatform != TargetPlatform.android) return;
     try {
@@ -1431,6 +1444,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     _pictureInPictureExitTimer?.cancel();
     if (_pictureInPictureHandlerInstalled) {
       AppDevice.channel.setMethodCallHandler(null);
+      unawaited(_disableAutoPictureInPicture());
     }
     _interactions.dispose();
     _playerFocus.dispose();
