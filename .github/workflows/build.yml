@@ -75,6 +75,13 @@ jobs:
           flutter-version: '3.47.4'
           channel: stable
           cache: true
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/2* 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android/sdk/system-images 2>/dev/null || true
+          df -h /
       - name: Install Android NDK
         run: |
           set -e
