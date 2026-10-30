@@ -16,16 +16,41 @@ import (
 
 const hongguoMultiVideoPath = "/novel/player/multi_video_model/v1/"
 
+// 红果取流签名与设备绑定：随机 did/iid 会在 x-argus 校验后被服务端拒绝（HTTP 200 空体），
+// 必须使用签名库内置的已注册设备（与参考实现一致）。
+const (
+	hongguoVideoDeviceID  = "4263275890506393"
+	hongguoVideoInstallID = "2715163518305450"
+)
+
 type hongguoQueryField struct{ name, value string }
 
-func hongguoVideoQuery(deviceID, installID string, now time.Time) string {
+// hongguoVideoIdentity 描述取流请求使用的 App 身份。
+// 站点已切换到新的 App 版本（aid=1967 / novelapp / 7.2.4.32），旧身份（8662 / novelread）
+// 仍能取目录但取流会返回空体；保留旧身份只为对齐历史签名向量。
+type hongguoVideoIdentity struct {
+	Aid, AppName, VersionCode, VersionName, Channel, Resolution string
+}
+
+var (
+	hongguoVideoIdentityLegacy = hongguoVideoIdentity{
+		Aid: "8662", AppName: "novelread", VersionCode: "71332",
+		VersionName: "7.1.3.32", Channel: "update_64", Resolution: "1280*2772",
+	}
+	hongguoVideoIdentityCurrent = hongguoVideoIdentity{
+		Aid: "1967", AppName: "novelapp", VersionCode: "72432",
+		VersionName: "7.2.4.32", Channel: "xiaomi_1967_64", Resolution: "1280*2620",
+	}
+)
+
+func hongguoVideoQuery(deviceID, installID string, now time.Time, identity hongguoVideoIdentity) string {
 	fields := []hongguoQueryField{
-		{"iid", installID}, {"device_id", deviceID}, {"ac", "wifi"}, {"channel", "update_64"},
-		{"aid", "8662"}, {"app_name", "novelread"}, {"version_code", "71332"}, {"version_name", hongguoVideoAppVersion},
+		{"iid", installID}, {"device_id", deviceID}, {"ac", "wifi"}, {"channel", identity.Channel},
+		{"aid", identity.Aid}, {"app_name", identity.AppName}, {"version_code", identity.VersionCode}, {"version_name", identity.VersionName},
 		{"device_platform", "android"}, {"os", "android"}, {"ssmix", "a"}, {"device_type", "25053RT47C"},
 		{"device_brand", "Redmi"}, {"language", "zh"}, {"os_api", "36"}, {"os_version", "16"},
-		{"manifest_version_code", "71332"}, {"resolution", "1280*2772"}, {"dpi", "520"}, {"update_version_code", "71332"},
-		{"host_abi", "arm64-v8a"}, {"dragon_device_type", "phone"}, {"pv_player", "71332"},
+		{"manifest_version_code", identity.VersionCode}, {"resolution", identity.Resolution}, {"dpi", "520"}, {"update_version_code", identity.VersionCode},
+		{"host_abi", "arm64-v8a"}, {"dragon_device_type", "phone"}, {"pv_player", identity.VersionCode},
 		{"compliance_status", "0"}, {"need_personal_recommend", "1"}, {"player_so_load", "1"}, {"is_android_pad_screen", "0"},
 		{"ts", strconv.FormatInt(now.Unix(), 10)}, {"_rticket", strconv.FormatInt(now.UnixMilli(), 10)},
 	}
@@ -67,7 +92,8 @@ func (d *Downloader) hongguoVideoModelRequest(ctx context.Context, videoID strin
 	}
 	client := d.hongguoClient()
 	client.mu.Lock()
-	base, deviceID, installID := client.baseURL, client.state.DeviceID, client.state.InstallID
+	base := client.baseURL
+	deviceID, installID := hongguoVideoDeviceID, hongguoVideoInstallID
 	client.mu.Unlock()
 	attempts := max(1, min(d.cfg.Retries, 3))
 	var lastErr error
@@ -160,7 +186,7 @@ func (d *Downloader) doHongguoVideoRequest(request *http.Request, body []byte, d
 	nonce, err := newHongguoVideoNonce()
 	if err == nil {
 		now := time.Now()
-		request.URL.RawQuery = hongguoVideoQuery(deviceID, installID, now)
+		request.URL.RawQuery = hongguoVideoQuery(deviceID, installID, now, hongguoVideoIdentityCurrent)
 		err = signHongguoVideoRequest(request, body, now, nonce)
 	}
 	if err != nil {

@@ -250,6 +250,12 @@ func hongguoLadonEncrypt(stamp, licenseID, aid int64, random4 []byte) string {
 }
 
 func signHongguoPlatform(request *http.Request, body []byte, now time.Time) {
+	signHongguoPlatformWith(request, body, now, request.URL.Query().Get("iid"))
+}
+
+// signHongguoPlatformWith 允许指定 x-argus 里的安装标识。
+// 参考实现取流时传空串（field 16 留空），目录类接口传 iid；两者都要与服务端校验一致。
+func signHongguoPlatformWith(request *http.Request, body []byte, now time.Time, installID string) {
 	query := request.URL.RawQuery
 	values := request.URL.Query()
 	aid := int64(hongguoSignAID)
@@ -263,7 +269,7 @@ func signHongguoPlatform(request *http.Request, body []byte, now time.Time) {
 	}
 	var random4 [4]byte
 	_, _ = rand.Read(random4[:])
-	if argus, err := hongguoArgusSign(query, stub, now.Unix(), aid, hongguoLicenseID, values.Get("device_id"), values.Get("iid"), 0); err == nil {
+	if argus, err := hongguoArgusSign(query, stub, now.Unix(), aid, hongguoLicenseID, values.Get("device_id"), installID, 0); err == nil {
 		request.Header.Set("X-Argus", argus)
 	}
 	request.Header.Set("X-Ladon", hongguoLadonEncrypt(now.Unix(), hongguoLicenseID, aid, random4[:]))

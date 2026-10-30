@@ -31,7 +31,7 @@ func TestHongguoVideoSignatureReferenceParity(t *testing.T) {
 	for _, row := range rows {
 		branches[row.Branch] = true
 		now := time.Unix(int64(row.Stamp), 0)
-		query := hongguoVideoQuery("2345678901234567890", "1234567890123456789", now)
+		query := hongguoVideoQuery("2345678901234567890", "1234567890123456789", now, hongguoVideoIdentityLegacy)
 		if query != row.Query {
 			t.Fatalf("query differs at %d", row.Stamp)
 		}
@@ -76,7 +76,7 @@ func TestHongguoMultiVideoRequestAndIdentity(t *testing.T) {
 		if req.Method != http.MethodPost || req.URL.Path != hongguoMultiVideoPath {
 			t.Fatal("wrong playback route", req.URL)
 		}
-		for _, name := range []string{"X-Medusa", "X-Helios", "X-Gorgon", "X-Argus", "X-Ladon", "X-SS-STUB"} {
+		for _, name := range []string{"X-Argus", "X-Ladon", "X-SS-STUB", "X-Khronos"} {
 			if req.Header.Get(name) == "" {
 				t.Fatal("missing signature", name)
 			}

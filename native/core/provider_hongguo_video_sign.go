@@ -40,21 +40,16 @@ func newHongguoVideoNonce() (hongguoVideoNonce, error) {
 	}, nil
 }
 
-func signHongguoVideoRequest(request *http.Request, body []byte, now time.Time, nonce hongguoVideoNonce) error {
+// signHongguoVideoRequest 只注入参考实现实际发送的签名头。
+// 实测可用的参考脚本只带 x-khronos / x-ladon / x-argus / x-ss-stub；
+// 多发的 gorgon/helios/medusa 会被新版本接口拒绝（HTTP 200 空体）。
+func signHongguoVideoRequest(request *http.Request, body []byte, now time.Time, _ hongguoVideoNonce) error {
 	stamp := uint32(now.Unix())
 	bodyHash := md5.Sum(body)
-	medusa, err := hongguoMedusa(request.URL.RawQuery, bodyHash, request.URL.Query().Get("device_id"), stamp, nonce)
-	if err != nil {
-		return err
-	}
 	request.Header.Set("X-Khronos", strconv.FormatUint(uint64(stamp), 10))
 	request.Header.Set("X-SS-Req-Ticket", strconv.FormatInt(now.UnixMilli(), 10))
 	request.Header.Set("X-SS-STUB", strings.ToUpper(hex.EncodeToString(bodyHash[:])))
-	request.Header.Set("X-Gorgon", hongguoVideoGorgon(request.URL.RawQuery, bodyHash, stamp, nonce.gorgon))
-	request.Header.Set("X-Helios", hongguoVideoHelios(stamp, nonce.helios))
-	request.Header.Set("X-Medusa", medusa)
-	request.Header.Set("X-TT-DT", "")
-	signHongguoPlatform(request, body, now)
+	signHongguoPlatformWith(request, body, now, "")
 	return nil
 }
 
