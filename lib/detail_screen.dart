@@ -27,12 +27,15 @@ class DetailScreen extends StatefulWidget {
     required this.store,
     this.resumeOnOpen = false,
     this.downloadOnOpen = false,
+    this.playerBuilder,
   });
   final Drama drama;
   final AppRepository repository;
   final LocalStore store;
   final bool resumeOnOpen;
   final bool downloadOnOpen;
+  @visibleForTesting
+  final Widget Function(DramaDetail, int, double)? playerBuilder;
   @override
   State<DetailScreen> createState() => _DetailScreenState();
 }
@@ -274,13 +277,15 @@ class _DetailScreenState extends State<DetailScreen> {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PlayerScreen(
-          detail: detail,
-          initialIndex: index,
-          initialPosition: position,
-          repository: widget.repository,
-          store: widget.store,
-        ),
+        builder: (_) =>
+            widget.playerBuilder?.call(detail, index, position) ??
+            PlayerScreen(
+              detail: detail,
+              initialIndex: index,
+              initialPosition: position,
+              repository: widget.repository,
+              store: widget.store,
+            ),
       ),
     );
     if (mounted) {

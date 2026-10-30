@@ -298,14 +298,22 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
-        home: DetailScreen(drama: drama, repository: repository, store: store),
+        home: DetailScreen(
+          drama: drama,
+          repository: repository,
+          store: store,
+          playerBuilder: (detail, index, position) {
+            expect(index, 0);
+            return const Scaffold(body: Text('合成播放器'));
+          },
+        ),
       ),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('start-play')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('这是一集 VIP 内容'), findsNothing);
-    expect(find.text('正在准备播放'), findsOneWidget);
+    expect(find.text('合成播放器'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
