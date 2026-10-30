@@ -1891,10 +1891,6 @@ class _PlayerScreenState extends State<PlayerScreen>
       ),
     );
   }
-        ),
-      ),
-    );
-  }
 
   Widget _mobileSynopsis() {
     final drama = widget.detail.drama;
