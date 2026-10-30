@@ -37,6 +37,35 @@ type nativeDownloadFileState struct {
 	Complete  bool   `json:"complete"`
 }
 
+type nativeDownloadPartialState struct {
+	Validator string `json:"validator"`
+	Total     int64  `json:"total"`
+}
+
+func nativeDownloadPartialStatePath(target string) string {
+	return target + ".part.state"
+}
+
+func nativeDownloadWritePartialState(target string, metadata nativeDownloadFileState) error {
+	encoded, err := json.Marshal(nativeDownloadPartialState{Validator: metadata.Validator, Total: metadata.Total})
+	if err != nil {
+		return err
+	}
+	return nativeDownloadWrite(nativeDownloadPartialStatePath(target), encoded)
+}
+
+func nativeDownloadPartialMatches(target string, metadata nativeDownloadFileState) bool {
+	body, err := os.ReadFile(nativeDownloadPartialStatePath(target))
+	if err != nil {
+		return false
+	}
+	var state nativeDownloadPartialState
+	if json.Unmarshal(body, &state) != nil {
+		return false
+	}
+	return state.Validator == metadata.Validator && state.Total == metadata.Total
+}
+
 func (manager *nativeDownloads) transferMedia(ctx context.Context, job nativeDownloadJob, media providerMedia) (nativeDownloadResult, error) {
 	ctx = providerMediaContext(ctx, media.credentials)
 	bundle := nativeDownloadBundle{quality: media.Quality, playlists: map[string][]byte{}}
@@ -45,6 +74,12 @@ func (manager *nativeDownloads) transferMedia(ctx context.Context, job nativeDow
 		return nativeDownloadResult{}, errors.New("下载地址无效")
 	}
 	hls := media.Playlist != "" || strings.HasSuffix(strings.ToLower(parsed.Path), ".m3u8")
+	if !hls {
+		if playlist, finalURL, ok := manager.sniffPlaylist(ctx, media); ok {
+			media.Playlist, media.URL = playlist, finalURL
+			hls = true
+		}
+	}
 	entry := "media.mp4"
 	if hls {
 		bundle, err = manager.downloadBundle(ctx, media, job.Quality)
@@ -163,6 +198,9 @@ func (manager *nativeDownloads) downloadFile(ctx context.Context, address, refer
 			offset = info.Size()
 		}
 	}
+	if offset > 0 && !nativeDownloadPartialMatches(target, metadata) {
+		offset = 0
+	}
 	for attempt := 0; attempt < 2; attempt++ {
 		size, restart, err := manager.downloadFileAttempt(ctx, address, referer, target, key, offset, metadata, progress)
 		if !restart {
@@ -231,10 +269,6 @@ func (manager *nativeDownloads) downloadFileAttempt(ctx context.Context, address
 		return 0, false, errors.New("视频密钥格式无效")
 	}
 	metadata := nativeDownloadFileState{URL: address, Validator: validator, Total: total}
-	encoded, _ := json.Marshal(metadata)
-	if err := nativeDownloadWrite(target+".json", encoded); err != nil {
-		return 0, false, err
-	}
 	flags := os.O_CREATE | os.O_WRONLY
 	if offset == 0 {
 		flags |= os.O_TRUNC
@@ -244,6 +278,17 @@ func (manager *nativeDownloads) downloadFileAttempt(ctx context.Context, address
 	file, err := os.OpenFile(target+".part", flags, 0600)
 	if err != nil {
 		return 0, false, errors.New("无法写入下载文件，请检查存储空间")
+	}
+	if offset == 0 {
+		if err := nativeDownloadWritePartialState(target, metadata); err != nil {
+			_ = file.Close()
+			return 0, false, err
+		}
+	}
+	encoded, _ := json.Marshal(metadata)
+	if err := nativeDownloadWrite(target+".json", encoded); err != nil {
+		_ = file.Close()
+		return 0, false, err
 	}
 	received := offset
 	buffer := make([]byte, 64<<10)
@@ -292,12 +337,51 @@ func (manager *nativeDownloads) downloadFileAttempt(ctx context.Context, address
 	if err = os.Rename(target+".part", target); err != nil {
 		return received, false, err
 	}
+	_ = os.Remove(nativeDownloadPartialStatePath(target))
 	metadata.Complete, metadata.Total = true, received
 	encoded, _ = json.Marshal(metadata)
 	if err = nativeDownloadWrite(target+".json", encoded); err != nil {
 		return received, false, err
 	}
 	return received, false, nil
+}
+
+func (manager *nativeDownloads) sniffPlaylist(ctx context.Context, media providerMedia) (string, string, bool) {
+	requestCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, media.URL, nil)
+	if err != nil {
+		return "", "", false
+	}
+	request.Header.Set("User-Agent", userAgent)
+	request.Header.Set("Referer", media.Referer)
+	request.Header.Set("Accept-Encoding", "identity")
+	request.Header.Set("Range", "bytes=0-511")
+	client := *manager.engine.downloader.client
+	client.Timeout = 15 * time.Second
+	response, err := manager.engine.downloader.doMediaRequestWithClient(request, &client)
+	if err != nil {
+		return "", "", false
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusPartialContent {
+		return "", "", false
+	}
+	contentType := strings.ToLower(response.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "video/") || strings.Contains(contentType, "audio/") {
+		return "", "", false
+	}
+	head := make([]byte, 512)
+	read, _ := io.ReadFull(response.Body, head)
+	text := strings.TrimSpace(strings.TrimPrefix(string(head[:read]), "\ufeff"))
+	if !strings.HasPrefix(text, "#EXTM3U") {
+		return "", "", false
+	}
+	playlist, finalURL, err := manager.downloadPlaylist(ctx, media.URL, media.Referer)
+	if err != nil {
+		return "", "", false
+	}
+	return playlist, finalURL, true
 }
 
 func (manager *nativeDownloads) downloadPlaylist(ctx context.Context, address, referer string) (string, string, error) {

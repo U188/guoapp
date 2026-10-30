@@ -2,11 +2,24 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+func nativeDownloadAssetTotal(directory, name string) (int64, bool) {
+	body, err := os.ReadFile(filepath.Join(directory, name+".json"))
+	if err != nil {
+		return 0, false
+	}
+	var state nativeDownloadFileState
+	if json.Unmarshal(body, &state) != nil || !state.Complete || state.Total <= 0 {
+		return 0, false
+	}
+	return state.Total, true
+}
 
 func (manager *nativeDownloads) jobDirectory(job nativeDownloadJob) string {
 	if job.Folder != "" {
@@ -39,6 +52,12 @@ func (manager *nativeDownloads) localFilesValid(record nativeDownloadRecord) boo
 			return false
 		}
 		if !strings.HasSuffix(name, ".m3u8") {
+			if strings.HasSuffix(name, ".key") && info.Size() != 16 {
+				return false
+			}
+			if expected, ok := nativeDownloadAssetTotal(directory, name); ok && expected != info.Size() {
+				return false
+			}
 			return true
 		}
 		if info.Size() > 4<<20 {
