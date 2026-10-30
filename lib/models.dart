@@ -9,7 +9,11 @@ class SourceSite {
   final String description;
   bool get onlineSearch => id == 'hongguo' || pagedSearch;
   bool get pagedSearch =>
-      id == 'huangju' || id == 'dsd' || id == 'xchina' || id == 'guoguo';
+      id == 'huangju' ||
+      id == 'dsd' ||
+      id == 'xchina' ||
+      id == 'guoguo' ||
+      id == 'theporny';
   bool get searchSuggestions => id == 'hongguo';
   String get groupId => switch (id) {
     'huangguo-video' || 'huangguoai' || 'cloudfront' => 'huangguo',
@@ -32,6 +36,7 @@ class SourceSite {
     dsd,
     SourceSite('xchina', 'XChina', '分类视频 · 在线搜索'),
     SourceSite('guoguo', '果果', '分类视频 · 在线搜索'),
+    SourceSite('theporny', 'Theporny', '分类视频 · 在线搜索'),
     SourceSite('huangguo-video', '黄果视频', '视频剧集'),
     SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
     SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),
@@ -43,6 +48,7 @@ class SourceSite {
     dsd,
     SourceSite('xchina', 'XChina', '分类视频 · 在线搜索'),
     SourceSite('guoguo', '果果', '分类视频 · 在线搜索'),
+    SourceSite('theporny', 'Theporny', '分类视频 · 在线搜索'),
     SourceSite('huangguo-video', '黄果视频', '视频剧集'),
     SourceSite('huangguoai', '黄果 AI', 'AI 短剧'),
     SourceSite('cloudfront', '黄果旧版', '旧 API 剧库'),

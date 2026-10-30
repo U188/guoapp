@@ -28,6 +28,7 @@ const (
 	sourceDSD           = "dsd"
 	sourceXChina        = "xchina"
 	sourceGuoguo        = "guoguo"
+	sourceTheporny      = "theporny"
 	sourceCloudFront    = "cloudfront"
 
 	providerMaxBodyBytes = 20 * 1024 * 1024
@@ -89,7 +90,7 @@ func splitProviderDramaID(id string) (source, sourceID string, ok bool) {
 
 func isHuangguoProviderSource(source string) bool {
 	switch canonicalProviderSource(source) {
-	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceDSD, sourceXChina, sourceGuoguo, sourceCloudFront:
+	case sourceHuangguoAI, sourceHuangguoVideo, sourceHuangdou, sourceHongguo, sourceHuangju, sourceDSD, sourceXChina, sourceGuoguo, sourceTheporny, sourceCloudFront:
 		return true
 	default:
 		return false
@@ -114,6 +115,8 @@ func canonicalProviderSource(source string) string {
 		return sourceXChina
 	case "guoguo", "guoguo.app":
 		return sourceGuoguo
+	case "theporny", "theporny.com", "www.theporny.com":
+		return sourceTheporny
 	case "cloudfront":
 		return sourceCloudFront
 	default:
@@ -227,6 +230,9 @@ func (d *Downloader) GetHuangguoChapters(ctx context.Context, source, sourceID s
 		return drama.DisplayTitle(), chapters, err
 	case sourceGuoguo:
 		drama, chapters, err := d.fetchGuoguoDetail(ctx, sourceID)
+		return drama.DisplayTitle(), chapters, err
+	case sourceTheporny:
+		drama, chapters, err := d.fetchThepornyDetail(ctx, sourceID)
 		return drama.DisplayTitle(), chapters, err
 	case sourceCloudFront:
 		return d.fetchLegacyChapters(ctx, sourceID)

@@ -41,6 +41,8 @@ func (d *Downloader) providerBaseURL(source string) string {
 		configured, fallback = d.cfg.XChinaURL, xchinaBaseURL
 	case sourceGuoguo:
 		configured, fallback = d.cfg.GuoguoURL, "https://"+guoguoAPIHost
+	case sourceTheporny:
+		configured, fallback = d.cfg.ThepornyURL, thepornyHosts[0]
 	default:
 		fallback = "https://d2pypzndaqisk.cloudfront.net"
 	}
@@ -68,6 +70,8 @@ func providerSourceForURL(raw string) string {
 		return sourceDSD
 	case host == "xchina.tube" || host == "www.xchina.tube":
 		return sourceXChina
+	case host == "theporny.com" || host == "www.theporny.com":
+		return sourceTheporny
 	default:
 		return ""
 	}
@@ -122,6 +126,9 @@ func (d *Downloader) resolveProviderMedia(ctx context.Context, task Task) (provi
 	}
 	if chapter.Source == sourceGuoguo {
 		return d.resolveGuoguoMedia(ctx, task)
+	}
+	if chapter.Source == sourceTheporny {
+		return d.resolveThepornyMedia(ctx, task)
 	}
 	if strings.HasPrefix(chapter.VideoURL, "hongguo-cenc://") {
 		return d.resolveHongguoMedia(ctx, task)

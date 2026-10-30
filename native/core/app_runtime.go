@@ -30,6 +30,7 @@ type Config struct {
 	HuangjuAPIURL    string
 	DSDURL           string
 	XChinaURL        string
+	ThepornyURL      string
 	GuoguoURL        string
 	Token            string
 	AESKeyHex        string
@@ -56,6 +57,8 @@ type Downloader struct {
 	xchinaCore            *xchinaClient
 	guoguoOnce            sync.Once
 	guoguoCore            *guoguoClient
+	thepornyOnce          sync.Once
+	thepornyCore          *thepornyClient
 	huangjuOnce           sync.Once
 	huangju               *huangjuAPIClient
 	dsdCatalog            dsdCatalogState
@@ -552,6 +555,17 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		result.HasMore = more
 		return result, nil
 	}
+	if query != "" && source == sourceTheporny {
+		items, more, err := d.fetchThepornyCatalogPage(ctx, page, "", query)
+		if err != nil {
+			return result, err
+		}
+		for _, drama := range items {
+			result.Items = append(result.Items, nativeNormalize(drama))
+		}
+		result.HasMore = more
+		return result, nil
+	}
 	if query != "" && source == sourceGuoguo {
 		items, more, err := d.fetchGuoguoCatalogPage(ctx, page, "", query)
 		if err != nil {
@@ -655,6 +669,8 @@ func (engine *nativeEngine) nativeCatalog(ctx context.Context, input nativeInput
 		items, result.HasMore, err = d.fetchXChinaCatalogPage(ctx, page, category, "")
 	case sourceGuoguo:
 		items, result.HasMore, err = d.fetchGuoguoCatalogPage(ctx, page, category, "")
+	case sourceTheporny:
+		items, result.HasMore, err = d.fetchThepornyCatalogPage(ctx, page, category, "")
 	case sourceHuangguoVideo:
 		address := fmt.Sprintf("%s/videos?page=%d", d.providerBaseURL(source), page)
 		if category != "" {
@@ -714,6 +730,8 @@ func (engine *nativeEngine) nativeDetail(ctx context.Context, drama nativeDrama)
 		raw, chapters, err = engine.downloader.fetchXChinaDetail(ctx, sourceID)
 	case sourceGuoguo:
 		raw, chapters, err = engine.downloader.fetchGuoguoDetail(ctx, sourceID)
+	case sourceTheporny:
+		raw, chapters, err = engine.downloader.fetchThepornyDetail(ctx, sourceID)
 	default:
 		title, chapters, err = engine.downloader.GetHuangguoChapters(ctx, source, sourceID)
 	}

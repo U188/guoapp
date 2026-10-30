@@ -65,6 +65,9 @@ func validNativeCategory(source, category string) bool {
 		return validXChinaCategory(category)
 	case sourceGuoguo:
 		return validGuoguoCategory(category)
+	case sourceTheporny:
+		_, ok := validThepornyCategory(category)
+		return ok
 	}
 	return false
 }
@@ -121,6 +124,8 @@ func (engine *nativeEngine) nativeCategories(ctx context.Context, source string,
 		}
 	case sourceXChina:
 		all = append(all, d.fetchXChinaCategories()...)
+	case sourceTheporny:
+		all = append(all, d.fetchThepornyCategories()...)
 	case sourceGuoguo:
 		var categories []nativeCategory
 		categories, err = d.fetchGuoguoCategories(ctx)
