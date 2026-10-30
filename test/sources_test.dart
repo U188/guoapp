@@ -135,7 +135,8 @@ void main() {
             name: '管理员',
             admin: true,
             salt: '0123456789abcdef0123456789abcdef',
-            pinHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+            pinHash:
+                '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
           ).toJson(),
           const LocalProfile(
             id: 'viewer',
@@ -304,8 +305,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: const TextScaler.linear(1.5)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.5)),
             child: child!,
           ),
           home: SourcesScreen(repository: repository, store: store),
