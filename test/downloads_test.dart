@@ -302,7 +302,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('episode-1')));
+    await tester.tap(find.byKey(const ValueKey('start-play')));
     await tester.pump();
     expect(find.text('这是一集 VIP 内容'), findsNothing);
     expect(find.text('正在准备播放'), findsOneWidget);

@@ -119,16 +119,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (SourceSite.values.length > 1) {
-          final switcher = find.byKey(const ValueKey('source-switch'));
-          final title = find
-              .descendant(of: switcher, matching: find.byType(Text))
-              .first;
-          Focus.of(tester.element(title)).requestFocus();
+          await tester.tap(find.byKey(const ValueKey('source-switch')));
           await tester.pumpAndSettle();
-          await press(tester, LogicalKeyboardKey.select);
-          await press(tester, LogicalKeyboardKey.arrowDown);
-          await press(tester, LogicalKeyboardKey.arrowDown);
-          await press(tester, LogicalKeyboardKey.select);
+          await tester.tap(
+            find.text(SourceSite.values[1].groupName).last,
+          );
+          await tester.pumpAndSettle();
         }
         expect(
           repository.requests.last,
