@@ -1,7 +1,6 @@
 import 'package:duanju_app/local_store.dart';
 import 'package:duanju_app/main.dart';
 import 'package:duanju_app/detail_screen.dart';
-import 'package:duanju_app/follow_state.dart';
 import 'package:duanju_app/models.dart';
 import 'package:duanju_app/remote_widgets.dart';
 import 'package:duanju_app/app_build.dart';
