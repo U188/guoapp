@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/aes"
 	"encoding/base64"
@@ -140,7 +141,26 @@ func (c *guoguoClient) raw(ctx context.Context, d *Downloader, host, path string
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("果果接口 HTTP %d", response.StatusCode)
 	}
-	return content, nil
+	return guoguoDecodeBody(content, response.Header.Get("Content-Encoding"))
+}
+
+// guoguoDecodeBody 解开接口可能返回的 gzip 压缩体。
+// 请求里显式带了 accept-encoding: gzip，Go 的 transport 只在自己添加该头时才自动解压，
+// 所以这里必须自行解压，否则登录响应会被当成无效 JSON，界面表现为「登录失败」。
+func guoguoDecodeBody(content []byte, encoding string) ([]byte, error) {
+	if len(content) < 2 || content[0] != 0x1f || content[1] != 0x8b {
+		return content, nil
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(content))
+	if err != nil {
+		return nil, errors.New("果果响应解压失败")
+	}
+	defer reader.Close()
+	plain, err := io.ReadAll(io.LimitReader(reader, providerMaxBodyBytes+1))
+	if err != nil {
+		return nil, errors.New("果果响应解压失败")
+	}
+	return plain, nil
 }
 
 func guoguoParse(content []byte) (map[string]any, error) {
