@@ -351,7 +351,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.text('正在进入播放'), findsNothing);
-      expect(find.text('合成一号'), findsOneWidget);
+      expect(find.byType(DetailScreen), findsOneWidget);
       final start = find.byKey(const ValueKey('start-play'));
       expect(start, findsOneWidget);
       expect(tester.widget<FilledButton>(start).onPressed, isNull);
