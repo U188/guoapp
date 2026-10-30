@@ -539,14 +539,18 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           key: ValueKey('pause-${job.episode.number}'),
                           tooltip: '暂停',
                           icon: const Icon(Icons.pause),
-                          onPressed: _busy ? null : () => _batch('pause', [job]),
+                          onPressed: _busy
+                              ? null
+                              : () => _batch('pause', [job]),
                         ),
                       if (job.resumable)
                         IconButton(
                           key: ValueKey('resume-${job.episode.number}'),
                           tooltip: '继续 / 重试',
                           icon: const Icon(Icons.play_arrow),
-                          onPressed: _busy ? null : () => _batch('resume', [job]),
+                          onPressed: _busy
+                              ? null
+                              : () => _batch('resume', [job]),
                         ),
                       if (job.completed)
                         IconButton(
@@ -573,9 +577,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         },
                         itemBuilder: (_) => [
                           if (job.completed)
-                            const PopupMenuItem(value: 'play', child: Text('本地播放')),
+                            const PopupMenuItem(
+                              value: 'play',
+                              child: Text('本地播放'),
+                            ),
                           if (job.active)
-                            const PopupMenuItem(value: 'pause', child: Text('暂停')),
+                            const PopupMenuItem(
+                              value: 'pause',
+                              child: Text('暂停'),
+                            ),
                           if (job.resumable)
                             const PopupMenuItem(
                               value: 'resume',
@@ -748,7 +758,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       key: const ValueKey('download-filter-downloading'),
                       label: const Text('下载中'),
                       selected: _filter == 'downloading',
-                      onSelected: (_) => setState(() => _filter = 'downloading'),
+                      onSelected: (_) =>
+                          setState(() => _filter = 'downloading'),
                     ),
                     const SizedBox(width: 8),
                     FilterChip(
