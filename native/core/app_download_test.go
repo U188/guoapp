@@ -212,6 +212,12 @@ func TestNativeDownloadRangeServersCannotMixFiles(t *testing.T) {
 			if err := os.WriteFile(target+".part", []byte("OLD!"), 0600); err != nil {
 				t.Fatal(err)
 			}
+			if metadata.Validator != "" {
+				state, _ := json.Marshal(nativeDownloadPartialState{Validator: metadata.Validator, Total: metadata.Total})
+				if err := os.WriteFile(target+".part.state", state, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
 			_, err := manager.downloadFile(context.Background(), metadata.URL, "", target, false, func(int64, int64) {})
 			if mode == "invalid" {
 				if err == nil {
@@ -473,5 +479,116 @@ func TestNativeDownloadHLSRejectsLiveAndUnsupportedEncryption(t *testing.T) {
 		if err == nil {
 			t.Fatalf("accepted unsupported playlist: %s", playlist)
 		}
+	}
+}
+
+func TestNativeDownloadResumeRejectsPartialFromAnotherGeneration(t *testing.T) {
+	data := []byte("NEW-CONTENT!")
+	var mu sync.Mutex
+	var ranges []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		ranges = append(ranges, r.Header.Get("Range"))
+		mu.Unlock()
+		w.Header().Set("ETag", `"v2"`)
+		http.ServeContent(w, r, "media.mp4", time.Time{}, bytes.NewReader(data))
+	}))
+	t.Cleanup(upstream.Close)
+	manager := downloadTestManager(t)
+	target := filepath.Join(manager.root, "generation.mp4")
+	address := upstream.URL + "/media.mp4"
+	metadata := nativeDownloadFileState{URL: address, Validator: `"v2"`, Total: int64(len(data))}
+	encoded, _ := json.Marshal(metadata)
+	if err := os.WriteFile(target+".json", encoded, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target+".part", []byte("OLD!"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.downloadFile(context.Background(), address, "", target, false, func(int64, int64) {}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Fatalf("stale partial merged into new generation: %q", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ranges) != 1 || ranges[0] != "" {
+		t.Fatalf("stale partial was resumed instead of restarted: %v", ranges)
+	}
+}
+
+func TestNativeHLSCompletedRejectsTruncatedSegment(t *testing.T) {
+	manager := downloadTestManager(t)
+	job := nativeDownloadJob{ID: "hls-truncated"}
+	directory := manager.jobDirectory(job)
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	playlist := "#EXTM3U\n#EXTINF:2,\nseg.ts\n#EXT-X-ENDLIST\n"
+	if err := os.WriteFile(filepath.Join(directory, "index.m3u8"), []byte(playlist), 0600); err != nil {
+		t.Fatal(err)
+	}
+	record := nativeDownloadRecord{nativeDownloadJob: job, File: "index.m3u8"}
+	encoded, _ := json.Marshal(nativeDownloadFileState{URL: "https://synthetic.test/seg.ts", Total: 100, Complete: true})
+	if err := os.WriteFile(filepath.Join(directory, "seg.ts.json"), encoded, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "seg.ts"), []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if manager.localFilesValid(record) {
+		t.Fatal("truncated HLS segment accepted as complete")
+	}
+	if err := os.WriteFile(filepath.Join(directory, "seg.ts"), bytes.Repeat([]byte("y"), 100), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if !manager.localFilesValid(record) {
+		t.Fatal("intact HLS segment rejected")
+	}
+}
+
+func TestNativeDownloadExtensionlessPlaylistIsBundled(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/play":
+			w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+			_, _ = fmt.Fprint(w, "#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:2,\nseg.ts\n#EXT-X-ENDLIST\n")
+		case "/seg.ts":
+			_, _ = fmt.Fprint(w, "segment-bytes")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+	manager := downloadTestManager(t)
+	job := nativeDownloadJob{ID: "hls-no-extension"}
+	result, err := manager.transferMedia(context.Background(), job, providerMedia{URL: upstream.URL + "/play"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.file != "index.m3u8" {
+		t.Fatalf("extensionless playlist saved as %q", result.file)
+	}
+	entries, err := os.ReadDir(manager.jobDirectory(job))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".ts") {
+			continue
+		}
+		body, _ := os.ReadFile(filepath.Join(manager.jobDirectory(job), entry.Name()))
+		if string(body) == "segment-bytes" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("playlist segment was not downloaded")
 	}
 }
