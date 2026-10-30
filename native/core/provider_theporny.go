@@ -25,7 +25,6 @@ import (
 // 响应是 {"r": "<base64>"}，用 OpenSSL "Salted__" + AES-256-CBC（EVP_BytesToKey/MD5）解出明文 JSON。
 // 该站按 TLS 指纹（JA3/JA4）拦截普通客户端，必须使用 Chrome 指纹客户端，因此这里复用 tls-client。
 const (
-	sourceTheporny    = "theporny"
 	thepornySiteURL   = "https://theporny.com"
 	thepornyApp       = "theporny.com"
 	thepornyVersion   = "260901"
