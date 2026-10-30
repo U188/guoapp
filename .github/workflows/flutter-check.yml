@@ -15,4 +15,6 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: flutter test --dart-define=DISABLE_REMOTE_IMAGES=true
+      - run: flutter test --dart-define=DISABLE_REMOTE_IMAGES=true --dart-define=ALL_SOURCES=true

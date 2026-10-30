@@ -40,7 +40,6 @@ class MediaProbe {
           audio['sample_rate'],
           audio['channels'],
           audio['channel_layout'],
-          audio['extradata_hash'] ?? 'unknown',
         ].join('|');
 }
 
@@ -95,12 +94,17 @@ class MergePlan {
     final vc = probes
         .map((p) => p.videoSignature != video.videoSignature)
         .toList();
-    var ac = probes
+    final ac = probes
         .map((p) => audio != null && p.audioSignature != audio.audioSignature)
         .toList();
     final canonicalAac =
-        audio?.audio['codec_name'] == 'aac' && ac.any((change) => change);
-    if (canonicalAac) ac = List.filled(probes.length, true);
+        audio?.audio['codec_name'] == 'aac' &&
+        probes.any(
+          (p) =>
+              p.hasAudio &&
+              (p.audio['codec_name'] != 'aac' ||
+                  p.audioSignature != audio!.audioSignature),
+        );
     if (vc.any((v) => v) && !{'h264', 'hevc'}.contains(video.videoCodec)) {
       throw AppFailure('多数分集为 ${video.videoCodec}，当前不能将其他格式转换为此编码；原文件已保留。');
     }

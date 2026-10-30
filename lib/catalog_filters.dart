@@ -77,9 +77,27 @@ class _CatalogFiltersState extends State<CatalogFilters> {
                             )
                           : ChoiceChip(
                               key: ValueKey('category-${entry.id}'),
-                              label: Text(entry.name),
+                              label: Text(
+                                entry.name,
+                                style: TextStyle(
+                                  fontWeight: entry.id == widget.category
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
                               selected: entry.id == widget.category,
                               showCheckmark: false,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              side: BorderSide(
+                                color: entry.id == widget.category
+                                    ? Colors.transparent
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .outlineVariant
+                                        .withValues(alpha: .5),
+                              ),
                               onSelected: (_) => widget.onCategory(entry.id),
                             ),
                     ),

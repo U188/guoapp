@@ -520,11 +520,19 @@ class _PlayerControlsState extends State<PlayerControls> {
             Expanded(
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  trackHeight: 3,
-                  secondaryActiveTrackColor: Colors.white38,
+                  trackHeight: 3.5,
+                  activeTrackColor: Theme.of(context).colorScheme.primary,
+                  inactiveTrackColor: Colors.white.withValues(alpha: .22),
+                  secondaryActiveTrackColor: Colors.white.withValues(alpha: .48),
+                  thumbColor: Theme.of(context).colorScheme.primary,
                   thumbShape: const RoundSliderThumbShape(
                     enabledThumbRadius: 6,
+                    elevation: 3,
                   ),
+                  overlayColor: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: .24),
                   overlayShape: const RoundSliderOverlayShape(
                     overlayRadius: 14,
                   ),
@@ -999,15 +1007,32 @@ class _PlayerControlsState extends State<PlayerControls> {
       if (feedback.isEmpty) return const SizedBox.shrink();
       return IgnorePointer(
         child: Align(
-          alignment: const Alignment(0, -.5),
+          alignment: const Alignment(0, -.4),
           child: Container(
             margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xCC000000),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: .14)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .45),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Text(feedback, textAlign: TextAlign.center),
+            child: Text(
+              feedback,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: .3,
+              ),
+            ),
           ),
         ),
       );

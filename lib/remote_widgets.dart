@@ -248,6 +248,10 @@ class _RemoteGridState extends State<RemoteGrid> {
     if (key == LogicalKeyboardKey.arrowDown) {
       if (index ~/ widget.columns ==
           (widget.itemKeys.length - 1) ~/ widget.columns) {
+        if (widget.footer != null) {
+          FocusScope.of(context).nextFocus();
+          return KeyEventResult.handled;
+        }
         return KeyEventResult.ignored;
       }
       next = (index + widget.columns).clamp(0, widget.itemKeys.length - 1);
