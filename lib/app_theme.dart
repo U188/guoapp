@@ -103,7 +103,7 @@ abstract final class AppTheme {
           borderSide: BorderSide.none,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: scheme.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
