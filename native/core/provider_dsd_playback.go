@@ -34,7 +34,7 @@ func parseDSDPlayer(document *html.Node) (map[string]any, bool, error) {
 			decoder.UseNumber()
 			var player map[string]any
 			if decoder.Decode(&player) != nil || player == nil {
-				return nil, true, errors.New("帝果播放器参数格式无效")
+				continue
 			}
 			if player["id"] != nil && player["url"] != nil {
 				return player, true, nil
