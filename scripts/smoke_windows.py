@@ -3,11 +3,18 @@ import json
 import platform
 import re
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
 from app_build import BuildVariant, add_variant_argument
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):
+    pass
 
 root = Path(__file__).resolve().parents[1]
 
@@ -35,7 +42,7 @@ def main():
         evidence = {}
         if report.exists():
             evidence = json.loads(report.read_text(encoding='utf-8'))
-            print(json.dumps(evidence, ensure_ascii=False))
+            print(json.dumps(evidence, ensure_ascii=True))
         if completed.returncode != 0 or evidence.get('ok') is not True:
             detail = evidence.get('error') or (completed.stderr or completed.stdout or '').strip()
             raise SystemExit('Windows 包启动验收未通过：' + (detail or f'退出码 {completed.returncode}'))
