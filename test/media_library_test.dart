@@ -410,7 +410,9 @@ void main() {
       download: true,
       pin: 'abcdef12',
     );
-    await store.switchProfile('default', pin: 'abcdef12');
+    await store.saveProfile(name: '访客', sources: ['hongguo'], download: true);
+    final visitor = store.profiles.firstWhere((profile) => !profile.admin);
+    await store.switchProfile(visitor.id);
     const allowed = Drama(id: 'hongguo:1', source: 'hongguo', title: '允许');
     const denied = Drama(id: 'huangdou:2', source: 'huangdou', title: '受限');
     DownloadJob job(String id, Drama drama) => DownloadJob(
