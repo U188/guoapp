@@ -155,6 +155,19 @@ class MainActivity : FlutterActivity() {
                             ))
                         }
                         "pictureInPictureStatus" -> result.success(pictureInPictureStatus())
+                        "setPictureInPictureAutoEnter" -> {
+                            val enabled = call.argument<Boolean>("enabled") ?: false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && pictureInPictureSupported()) {
+                                runCatching {
+                                    setPictureInPictureParams(
+                                        PictureInPictureParams.Builder()
+                                            .setAutoEnterEnabled(enabled)
+                                            .build()
+                                    )
+                                }
+                            }
+                            result.success(null)
+                        }
                         "enterPictureInPicture" -> {
                             val width = call.argument<Int>("width") ?: 16
                             val height = call.argument<Int>("height") ?: 9

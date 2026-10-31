@@ -521,4 +521,21 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('failed filter lists failed jobs', (tester) async {
+    size(tester, const Size(360, 760));
+    final repository = DownloadRepository();
+    repository.jobs = [repository.job(1, 'failed')];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: DownloadsScreen(repository: repository, store: await makeStore()),
+      ),
+    );
+    await tick(tester);
+    await tester.tap(find.byKey(const ValueKey('download-filter-error')));
+    await tick(tester);
+    expect(find.byKey(const ValueKey('download-task-1')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
 }
