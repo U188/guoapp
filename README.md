@@ -683,7 +683,7 @@ SR-1、SR-2 与 SR-4 已接入源码，小型动漫 CNN 也包含在本轮；SR-
 | 红果鉴，仅红果 | `dist/android/hongguojian-0.2.15+21-arm64-v8a.apk` | 30.9 MB |
 | 真果鉴，全部站源 | `dist/android/zhenguojian-0.2.15+21-arm64-v8a.apk` | 30.9 MB |
 
-`main` 上每次成功的完整构建都会触发 `Publish release`，把 Android（arm64-v8a APK）、Windows（x64 zip）、iOS（未签名 .app zip）三类产物挂到同一个 Release，标签取 `v<版本>`。两版安装包的 SHA256 校验值分别保存在 `dist/android/SHA256SUMS-<slug>.txt`（红果鉴 `hongguojian`、真果鉴 `zhenguojian`），发布页会同时带上两份清单。应用名称、包名、版本、签名、包 CRC、ZIP 对齐和对应原生核心均已核对；实际运行行为仍待安装验收。
+`main` 上每次成功的完整构建都会触发 `Publish release`，把 Android（arm64-v8a APK）、Windows（x64 zip）、iOS（未签名 .ipa 与 .app zip）三类产物挂到同一个 Release，标签取 `v<版本>`。两版安装包的 SHA256 校验值分别保存在 `dist/android/SHA256SUMS-<slug>.txt`（红果鉴 `hongguojian`、真果鉴 `zhenguojian`），发布页会同时带上两份清单。应用名称、包名、版本、签名、包 CRC、ZIP 对齐和对应原生核心均已核对；实际运行行为仍待安装验收。
 
 从 0.2.6 起，Android APK 默认压缩原生 `.so` 库，对红果版和全站源版同时生效。系统在安装时解压原生库后加载，缩小安装包下载体积；安装后仍需保留解压后的原生库空间。
 
@@ -699,7 +699,7 @@ SR-1、SR-2 与 SR-4 已接入源码，小型动漫 CNN 也包含在本轮；SR-
 | --- | --- | --- |
 | `hongguojian-android` | `zhenguojian-android` | 三种架构 APK 和 SHA256 |
 | `hongguojian-windows` | `zhenguojian-windows` | 完整 ZIP 和 SHA256；从解压包检查原生核心、FFprobe、换封装及播放器启动 |
-| `hongguojian-ios-unsigned` | `zhenguojian-ios-unsigned` | 未签名 `.app` ZIP 和 SHA256，不能直接当已签名 IPA 安装 |
+| `hongguojian-ios-unsigned` | `zhenguojian-ios-unsigned` | 未签名 `.ipa`（`Payload/Runner.app` 结构，可用 AltStore / Sideloadly 重签安装）与 `.app` ZIP，另附 SHA256；不是可直接安装的签名 IPA |
 
 Actions 分别传入默认参数与 `--all-sources` 构建两版，Flutter 和 Go 回归也覆盖两种编译配置。产物保留 14 天，不自动创建 GitHub Release。首次平台构建结果以实际 Actions 输出为准。
 
