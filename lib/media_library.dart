@@ -188,20 +188,32 @@ class MediaLibrary extends ChangeNotifier {
         }),
       );
     }
-    if (!Platform.isAndroid) {
-      final automatic = MediaLibrary(
-        repository is NativeRepository
-            ? NativeRepository(background: true)
-            : repository,
-        store,
-        automaticWorker: true,
-      );
-      library._automatic = automatic;
-      library._timer = Timer.periodic(
-        const Duration(seconds: 8),
-        (_) => unawaited(automatic.maybeExport()),
-      );
+    final automatic = MediaLibrary(
+      repository is NativeRepository
+          ? NativeRepository(background: true)
+          : repository,
+      store,
+      automaticWorker: true,
+    );
+    library._automatic = automatic;
+    library._timer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => unawaited(automatic.maybeExport()),
+    );
+  }
+
+  @visibleForTesting
+  static List<DownloadJob> exportableDownloads(
+    Iterable<DownloadJob> jobs,
+    LocalStore store,
+  ) {
+    final result = <DownloadJob>[];
+    for (final job in jobs) {
+      if (store.canDownload && store.allowsSource(job.drama.source)) {
+        result.add(job);
+      }
     }
+    return result;
   }
 
   List<LocalMediaItem> get items =>
@@ -538,14 +550,15 @@ class MediaLibrary extends ChangeNotifier {
     _checking = true;
     try {
       if (automaticWorker) await store.reload();
-      if (!store.autoExport) return;
+      if (store.locked || !store.autoExport) return;
       final jobs = await repository.downloads();
       if (!jobs.any((job) => job.completed)) return;
       await reload();
       final pending = <DownloadJob>[];
-      for (final job in jobs.where(
-        (job) => job.completed && !_skipped.contains(job.id),
-      )) {
+      for (final job in exportableDownloads(
+        jobs,
+        store,
+      ).where((job) => job.completed && !_skipped.contains(job.id))) {
         final item = _items
             .where((item) => item.id == 'export-${job.id}')
             .firstOrNull;

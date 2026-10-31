@@ -400,4 +400,33 @@ void main() {
     skip: available ? false : 'requires ffmpeg and ffprobe',
     timeout: const Timeout(Duration(minutes: 3)),
   );
+  test('export batch only includes sources the current user may use', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = LocalStore(await SharedPreferences.getInstance());
+    await store.saveProfile(
+      id: 'default',
+      name: '管理员',
+      sources: ['hongguo'],
+      download: true,
+      pin: 'abcdef12',
+    );
+    await store.saveProfile(name: '访客', sources: ['hongguo'], download: true);
+    final visitor = store.profiles.firstWhere((profile) => !profile.admin);
+    await store.switchProfile(visitor.id);
+    const allowed = Drama(id: 'hongguo:1', source: 'hongguo', title: '允许');
+    const denied = Drama(id: 'huangdou:2', source: 'huangdou', title: '受限');
+    DownloadJob job(String id, Drama drama) => DownloadJob(
+      id: id,
+      drama: drama,
+      episode: Episode({'id': id, 'currentEpisode': 1}, 1),
+      state: 'completed',
+      created: 1,
+    );
+    final selected = MediaLibrary.exportableDownloads([
+      job('a', allowed),
+      job('b', denied),
+    ], store);
+    expect(selected.map((entry) => entry.drama.source), ['hongguo']);
+    store.dispose();
+  });
 }
