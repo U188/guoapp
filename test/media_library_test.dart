@@ -420,10 +420,10 @@ void main() {
       state: 'completed',
       created: 1,
     );
-    final selected = MediaLibrary.exportableDownloads(
-      [job('a', allowed), job('b', denied)],
-      store,
-    );
+    final selected = MediaLibrary.exportableDownloads([
+      job('a', allowed),
+      job('b', denied),
+    ], store);
     expect(selected.map((entry) => entry.drama.source), ['hongguo']);
     store.dispose();
   });

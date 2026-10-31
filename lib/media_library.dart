@@ -555,9 +555,10 @@ class MediaLibrary extends ChangeNotifier {
       if (!jobs.any((job) => job.completed)) return;
       await reload();
       final pending = <DownloadJob>[];
-      for (final job in exportableDownloads(jobs, store).where(
-        (job) => job.completed && !_skipped.contains(job.id),
-      )) {
+      for (final job in exportableDownloads(
+        jobs,
+        store,
+      ).where((job) => job.completed && !_skipped.contains(job.id))) {
         final item = _items
             .where((item) => item.id == 'export-${job.id}')
             .firstOrNull;
