@@ -61,7 +61,7 @@ jobs:
         run: |
           set -e
           ls -l artifacts
-          (cd artifacts && sha256sum *.apk *.zip | sort -k2) > artifacts/SHA256SUMS-all.txt
+          (cd artifacts && sha256sum *.apk *.zip *.ipa | sort -k2) > artifacts/SHA256SUMS-all.txt
           cat artifacts/SHA256SUMS-all.txt
 
       - name: Publish
@@ -77,11 +77,12 @@ jobs:
             | --- | --- |
             | Android arm64-v8a | `hongguojian-*.apk`（红果鉴）、`zhenguojian-*.apk`（真果鉴） |
             | Windows x64 | `*-windows-x64.zip` |
-            | iOS 15.1+ | `*-ios-unsigned-app.zip`（未签名，需自行签名安装） |
+            | iOS 15.1+ | `*-ios-unsigned.ipa`（Payload 结构，需重签后用 AltStore / Sideloadly 安装）、`*-ios-unsigned-app.zip`（原始 .app） |
 
             校验值见 `SHA256SUMS-all.txt` 与各品牌 `SHA256SUMS-<slug>.txt`。Windows 包已通过启动冒烟；iOS 包未签名、未做真机验收。
           files: |
             artifacts/*.apk
             artifacts/*.zip
+            artifacts/*.ipa
             artifacts/SHA256SUMS-all.txt
           fail_on_unmatched_files: true
