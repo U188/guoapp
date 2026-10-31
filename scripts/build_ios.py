@@ -116,7 +116,7 @@ def main():
                 digest.update(chunk)
         checksums.append(f'{digest.hexdigest()}  {artifact.name}')
         print(artifact)
-    (output / 'SHA256SUMS.txt').write_text('\n'.join(checksums) + '\n', encoding='ascii')
+    (output / f'SHA256SUMS-{variant.slug}.txt').write_text('\n'.join(checksums) + '\n', encoding='ascii')
 
 
 if __name__ == '__main__':
