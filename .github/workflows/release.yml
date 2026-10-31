@@ -1,0 +1,89 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build app packages"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve build run
+        id: build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            RUN_ID="${{ github.event.workflow_run.id }}"
+          else
+            RUN_ID="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id')"
+          fi
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "没有成功的构建运行"; exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION%%+*}" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+          run-id: ${{ steps.build.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect checksums
+        run: |
+          set -e
+          ls -l artifacts
+          {
+            for file in artifacts/SHA256SUMS-*.txt; do
+              [ -e "$file" ] && cat "$file"
+            done
+          } > artifacts/SHA256SUMS-all.txt
+          cat artifacts/SHA256SUMS-all.txt
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.version }}
+          make_latest: true
+          body: |
+            版本 ${{ steps.version.outputs.version }}，由构建 ${{ steps.build.outputs.run_id }} 产出。
+
+            | 平台 | 文件 |
+            | --- | --- |
+            | Android arm64-v8a | `hongguojian-*.apk`（红果鉴）、`zhenguojian-*.apk`（真果鉴） |
+            | Windows x64 | `*-windows-x64.zip` |
+            | iOS 15.1+ | `*-ios-unsigned-app.zip`（未签名，需自行签名安装） |
+
+            校验值见 `SHA256SUMS-all.txt` 与各品牌 `SHA256SUMS-<slug>.txt`。Windows 包已通过启动冒烟；iOS 包未签名、未做真机验收。
+          files: |
+            artifacts/*
+          fail_on_unmatched_files: true
