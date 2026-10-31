@@ -3,11 +3,18 @@ import json
 import platform
 import re
 import subprocess
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
 from app_build import BuildVariant, add_variant_argument
+
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except (AttributeError, ValueError):
+    pass
 
 root = Path(__file__).resolve().parents[1]
 
@@ -18,7 +25,7 @@ def main():
     variant = BuildVariant(parser.parse_args().all_sources)
     if platform.system() != 'Windows':
         raise SystemExit('此检查需要 Windows。')
-    version = re.search(r'^version:\s*(\S+)', (root / 'pubspec.yaml').read_text(), re.MULTILINE).group(1)
+    version = re.search(r'^version:\s*(\S+)', (root / 'pubspec.yaml').read_text(encoding='utf-8'), re.MULTILINE).group(1)
     package = root / 'dist' / 'windows' / f'{variant.slug}-{version}-windows-x64.zip'
     with tempfile.TemporaryDirectory(prefix='zhenguojian-smoke-') as temporary:
         directory = Path(temporary)
@@ -29,14 +36,19 @@ def main():
                         '-i', 'testsrc2=size=160x90:rate=12', '-t', '3',
                         '-c:v', 'libx264', '-threads', '1', str(media)], check=True)
         report = directory / 'result.json'
-        subprocess.run([str(directory / (variant.slug + '.exe')), '--package-smoke', str(report), str(media)],
-                       cwd=directory, check=True, timeout=90)
-        evidence = json.loads(report.read_text())
-        if evidence.get('ok') is not True:
-            raise SystemExit('Windows 包启动验收未通过。')
+        completed = subprocess.run(
+            [str(directory / (variant.slug + '.exe')), '--package-smoke', str(report), str(media)],
+            cwd=directory, capture_output=True, text=True, timeout=90)
+        evidence = {}
+        if report.exists():
+            evidence = json.loads(report.read_text(encoding='utf-8'))
+            print(json.dumps(evidence, ensure_ascii=True))
+        if completed.returncode != 0 or evidence.get('ok') is not True:
+            detail = evidence.get('error') or (completed.stderr or completed.stdout or '').strip()
+            raise SystemExit('Windows 包启动验收未通过：' + (detail or f'退出码 {completed.returncode}'))
         output = root / 'build' / 'windows-package-smoke.json'
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(evidence, indent=2) + '\n')
+        output.write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
         print(json.dumps(evidence))
 
 
