@@ -36,6 +36,7 @@ const (
 )
 
 var (
+	guoguoScheme   = "https"
 	guoguoAPIHosts = []string{guoguoAPIHost, "18.167.253.162"}
 	guoguoCDNHosts = []string{"mysf5bf09.hzlld56.com", "mysf5bf10.zheguo00.com", "ycsf4bf05.ablog168.com", "ycsf4bf06.klxq888.com"}
 
@@ -122,7 +123,7 @@ func (c *guoguoClient) raw(ctx context.Context, d *Downloader, host, path string
 	if err != nil {
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://"+host+path, bytes.NewReader(encoded))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, guoguoScheme+"://"+host+path, bytes.NewReader(encoded))
 	if err != nil {
 		return nil, err
 	}
@@ -223,32 +224,38 @@ func (c *guoguoClient) call(ctx context.Context, d *Downloader, path string, bod
 	c.mu.Unlock()
 	var lastErr error
 	for _, host := range hosts {
-		content, err := c.raw(ctx, d, host, path, body, token)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		parsed, err := guoguoParse(content)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		switch mapString(parsed, "code") {
-		case "0":
-			c.mu.Lock()
-			c.host = host
-			c.mu.Unlock()
-			return parsed, nil
-		case "6":
-			c.mu.Lock()
-			c.token = ""
-			c.mu.Unlock()
-			if err := c.login(ctx, d); err != nil {
-				return nil, err
+		for attempt := 0; attempt < 2; attempt++ {
+			content, err := c.raw(ctx, d, host, path, body, token)
+			if err != nil {
+				lastErr = err
+				break
 			}
-			continue
-		default:
-			lastErr = fmt.Errorf("果果接口返回 %s", truncate(mapString(parsed, "msg"), 40))
+			parsed, err := guoguoParse(content)
+			if err != nil {
+				lastErr = err
+				break
+			}
+			switch mapString(parsed, "code") {
+			case "0":
+				c.mu.Lock()
+				c.host = host
+				c.mu.Unlock()
+				return parsed, nil
+			case "6":
+				c.mu.Lock()
+				c.token = ""
+				c.mu.Unlock()
+				if err := c.login(ctx, d); err != nil {
+					return nil, err
+				}
+				c.mu.Lock()
+				token = c.token
+				c.mu.Unlock()
+				continue
+			default:
+				lastErr = fmt.Errorf("果果接口返回 %s", truncate(mapString(parsed, "msg"), 40))
+			}
+			break
 		}
 	}
 	if lastErr == nil {
@@ -275,35 +282,75 @@ func (c *guoguoClient) rememberMediaType(id string, value int) {
 	c.mu.Unlock()
 }
 
+func guoguoMediaReferer(address string) string {
+	if index := strings.Index(address, "://"); index > 0 {
+		rest := address[index+3:]
+		if slash := strings.Index(rest, "/"); slash > 0 {
+			return address[:index+3] + rest[:slash] + "/"
+		}
+	}
+	return "https://" + guoguoCDNHosts[0] + "/"
+}
+
+func guoguoCDNPick(path string) int {
+	if len(guoguoCDNHosts) <= 1 {
+		return 0
+	}
+	digest := sha256.Sum256([]byte(path))
+	return int(digest[0]) % len(guoguoCDNHosts)
+}
+
+func guoguoMediaURLs(address string) []string {
+	address = strings.TrimSpace(address)
+	if address == "" {
+		return nil
+	}
+	if strings.HasPrefix(address, "//") {
+		return []string{"https:" + address}
+	}
+	if strings.HasPrefix(address, "http://") || strings.HasPrefix(address, "https://") {
+		return []string{address}
+	}
+	if !strings.HasPrefix(address, "/") {
+		address = "/" + address
+	}
+	start := guoguoCDNPick(address)
+	urls := make([]string, 0, len(guoguoCDNHosts))
+	for offset := 0; offset < len(guoguoCDNHosts); offset++ {
+		host := guoguoCDNHosts[(start+offset)%len(guoguoCDNHosts)]
+		urls = append(urls, "https://"+host+address)
+	}
+	return urls
+}
+
 func guoguoPicture(path string) string {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return ""
 	}
-	if strings.HasPrefix(path, "http") {
-		return path
+	if strings.HasPrefix(path, "//") || strings.HasPrefix(path, "http") {
+		urls := guoguoMediaURLs(path)
+		if len(urls) == 0 {
+			return ""
+		}
+		return urls[0]
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".bnc") {
 		path = path[:len(path)-4]
 	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
+	urls := guoguoMediaURLs(path)
+	if len(urls) == 0 {
+		return ""
 	}
-	return "https://" + guoguoCDNHosts[0] + path
+	return urls[0]
 }
 
 func guoguoPlayURL(video map[string]any) string {
-	address := strings.TrimSpace(mapString(video, "videoUrl"))
-	if address == "" {
+	urls := guoguoMediaURLs(mapString(video, "videoUrl"))
+	if len(urls) == 0 {
 		return ""
 	}
-	if strings.HasPrefix(address, "http") {
-		return address
-	}
-	if !strings.HasPrefix(address, "/") {
-		address = "/" + address
-	}
-	return "https://" + guoguoCDNHosts[0] + address
+	return urls[0]
 }
 
 func guoguoRows(value any) []map[string]any {
@@ -555,18 +602,25 @@ func (d *Downloader) resolveGuoguoMedia(ctx context.Context, task Task) (provide
 		return providerMedia{}, err
 	}
 	video, _ := nestedMap(result, "data")["video"].(map[string]any)
-	address := guoguoPlayURL(video)
-	if address == "" {
+	addresses := guoguoMediaURLs(mapString(video, "videoUrl"))
+	if len(addresses) == 0 {
 		return providerMedia{}, errors.New("果果该视频未返回播放地址")
 	}
-	if strings.Contains(address, "_preview") {
+	if strings.Contains(addresses[0], "_preview") {
 		return providerMedia{}, errors.New("果果该集需要解锁后才能播放，应用不会绕过站方付费限制")
 	}
-	return providerMedia{
-		URL:     address,
-		Referer: "https://" + guoguoCDNHosts[0] + "/",
-		credentials: &providerMediaCredentials{
-			userAgent: guoguoUserAgent,
-		},
-	}, nil
+	credentials := &providerMediaCredentials{userAgent: guoguoUserAgent}
+	media := providerMedia{
+		URL:         addresses[0],
+		Referer:     guoguoMediaReferer(addresses[0]),
+		credentials: credentials,
+	}
+	for _, alternative := range addresses[1:] {
+		media.Variants = append(media.Variants, providerMedia{
+			URL:         alternative,
+			Referer:     guoguoMediaReferer(alternative),
+			credentials: credentials,
+		})
+	}
+	return media, nil
 }
