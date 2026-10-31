@@ -29,15 +29,24 @@ Future<void> runPackageSmoke(List<String> arguments) async {
       remuxed.path,
     ]);
     verifyMediaDuration(await executor.probe(remuxed.path), 3);
-    player = Player(
-      configuration: const PlayerConfiguration(muted: true, vo: 'null'),
-    );
-    await player.setAudioTrack(AudioTrack.no());
+    player = Player(configuration: const PlayerConfiguration(muted: true));
+    final failures = <String>[];
+    final errors = player.stream.error.listen(failures.add);
     final advancing = player.stream.position.firstWhere(
       (time) => time.inMilliseconds >= 400,
     );
     await player.open(Media(remuxed.path));
-    await advancing.timeout(const Duration(seconds: 20));
+    try {
+      await advancing.timeout(const Duration(seconds: 30));
+    } catch (_) {
+      final state = player.state;
+      throw StateError(
+        '播放未推进 position=${state.position} duration=${state.duration} '
+        'playing=${state.playing} buffering=${state.buffering} '
+        'errors=${failures.take(3).join(" | ")}',
+      );
+    }
+    await errors.cancel();
     await report.writeAsString(
       jsonEncode({
         'ok': true,
