@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/aes"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
