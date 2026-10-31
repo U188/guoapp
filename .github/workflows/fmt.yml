@@ -1,0 +1,25 @@
+name: Format dump
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+      - run: flutter pub get --enforce-lockfile
+      - name: Dump formatted files
+        run: |
+          echo "===BEGIN-MEDIA==="
+          dart format --output=show lib/media_library.dart
+          echo "===END-MEDIA==="
+          echo "===BEGIN-TEST==="
+          dart format --output=show test/media_library_test.dart
+          echo "===END-TEST==="
