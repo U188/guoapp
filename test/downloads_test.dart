@@ -528,10 +528,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
-        home: DownloadsScreen(
-          repository: repository,
-          store: await makeStore(),
-        ),
+        home: DownloadsScreen(repository: repository, store: await makeStore()),
       ),
     );
     await tick(tester);
