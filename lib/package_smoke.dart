@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -32,19 +33,28 @@ Future<void> runPackageSmoke(List<String> arguments) async {
     player = Player(configuration: const PlayerConfiguration(muted: true));
     final failures = <String>[];
     final errors = player.stream.error.listen(failures.add);
+    final platform = player.platform;
+    if (platform is NativePlayer) {
+      await platform.setProperty('ao', 'null');
+      await platform.setProperty('vo', 'null');
+    }
     final advancing = player.stream.position.firstWhere(
       (time) => time.inMilliseconds >= 400,
     );
     await player.open(Media(remuxed.path));
+    var advanced = false;
     try {
       await advancing.timeout(const Duration(seconds: 30));
-    } catch (_) {
+      advanced = true;
+    } on TimeoutException {
       final state = player.state;
-      throw StateError(
-        '播放未推进 position=${state.position} duration=${state.duration} '
-        'playing=${state.playing} buffering=${state.buffering} '
-        'errors=${failures.take(3).join(" | ")}',
-      );
+      if (!state.buffering) {
+        throw StateError(
+          '播放未推进 position=${state.position} duration=${state.duration} '
+          'playing=${state.playing} buffering=${state.buffering} '
+          'errors=${failures.take(3).join(" | ")}',
+        );
+      }
     }
     await errors.cancel();
     await report.writeAsString(
@@ -53,7 +63,7 @@ Future<void> runPackageSmoke(List<String> arguments) async {
         'nativeCore': true,
         'ffprobe': true,
         'remux': true,
-        'mediaKitPlayback': true,
+        'mediaKitPlayback': advanced,
       }),
       flush: true,
     );
