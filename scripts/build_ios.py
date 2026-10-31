@@ -106,6 +106,16 @@ def main():
         destination = output / f'{variant.slug}-{version}-ios-unsigned-app.zip'
         run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(application), str(destination)])
         artifacts.append(destination)
+        payload = root / 'build' / 'ios' / 'Payload'
+        if payload.exists():
+            shutil.rmtree(payload)
+        payload.mkdir(parents=True)
+        run(['ditto', str(application), str(payload / 'Runner.app')])
+        unsigned_ipa = output / f'{variant.slug}-{version}-ios-unsigned.ipa'
+        if unsigned_ipa.exists():
+            unsigned_ipa.unlink()
+        run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', str(payload), str(unsigned_ipa)])
+        artifacts.append(unsigned_ipa)
     if not artifacts:
         raise SystemExit('未生成 iOS 安装包。')
     checksums = []
